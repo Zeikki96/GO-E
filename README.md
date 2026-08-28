@@ -6,7 +6,18 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Ei vielä riittävästi dataa yhteenvedon laskemiseen (tarvitaan vähintään kaksi mittausta)._
+_Päivitetty automaattisesti: 28.08.2026 klo 20:42 (UTC)_
+
+_Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._
+
+- **Yhteensä ladattu:** 0.1 kWh (28.08.2026 – 28.08.2026)
+- **Viimeiset 24 h:** 0.13 kWh
+- **Viimeiset 7 vrk:** 0.13 kWh
+- **Keskiarvo / vrk:** _lasketaan kun dataa on kertynyt vähintään vuorokausi (nyt 0.0 h)_
+
+![Latausdata](summary_chart.png)
+
+_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv). Raakadata: [`goe_log.csv`](./goe_log.csv)._
 <!-- SUMMARY_END -->
 
 ## 1. Hae API-tunnukset

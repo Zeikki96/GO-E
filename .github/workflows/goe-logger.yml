@@ -2,10 +2,11 @@ name: go-e charger logger
 
 on:
   schedule:
-    # Ajetaan 15 minuutin välein. GitHub ei takaa tarkkaa ajoitusta
-    # ruuhka-aikoina (voi venyä muutamalla minuutilla) - tuntitason
-    # analyysiin tämä ei haittaa.
-    - cron: "*/15 * * * *"
+    # Ajetaan 15 minuutin välein, mutta 7 min yli tasavarttien - GitHubin
+    # oma ruuhka on pahin juuri tasatunneilla/-varteilla (:00, :15, :30, :45),
+    # koska valtaosa maailman ajastetuista workflowista yrittää käynnistyä
+    # silloin. Offset pienentää todennäköisyyttä pitkälle viiveelle.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch: {}   # mahdollistaa myös manuaalisen ajon "Run workflow" -napista
 
 permissions:

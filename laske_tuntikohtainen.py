@@ -10,16 +10,16 @@ lukema: kahden peräkkäisen mittauksen EROTUS kertoo täsmälleen, paljonko
 energiaa kului niiden välissä - ei tarvitse arvata tehon pysyneen
 vakiona, koska laturi on jo itse integroinut sen puolestamme.
 
-Tämä on tarkempi kuin teho x aika -approksimaatio, koska se ei oleta
-mitään latauksen käyttäytymisestä otosten välissä (lataus on voinut
-käynnistyä, pysähtyä tai vaihtaa tehoa - erotus on silti oikea).
-
 Jos kahden otoksen välinen aika on epänormaalin pitkä (esim. skripti
 ollut pois päältä), väli ohitetaan, ettei siihen kertyneestä energiasta
 tule virheellisesti yhteen tuntiin lisättyä piikkiä.
 
-Käyttö:
+Käyttö komentoriviltä:
     python3 laske_tuntikohtainen.py [polku/goe_log.csv]
+
+Käyttö moduulina (esim. update_summary.py):
+    from laske_tuntikohtainen import compute_hourly
+    hourly = compute_hourly("goe_log.csv")  # -> list of (datetime, kwh), aikajärjestyksessä
 """
 
 import sys
@@ -30,9 +30,8 @@ from collections import defaultdict
 MAX_GAP_HOURS = 2  # jos otosten väli on tätä pidempi, ohitetaan (esim. skripti ollut pois päältä)
 
 
-def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "goe_log.csv"
-
+def compute_hourly(path: str):
+    """Palauttaa listan (tunnin_alkuaika: datetime, kwh: float), aikajärjestyksessä."""
     rows = []
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -44,24 +43,16 @@ def main():
     rows.sort(key=lambda r: r["timestamp"])
 
     hourly_kwh = defaultdict(float)
-    skipped_gaps = 0
-    skipped_resets = 0
 
     for i in range(1, len(rows)):
         prev, cur = rows[i - 1], rows[i]
 
         dt = cur["timestamp"] - prev["timestamp"]
         if dt <= timedelta(0) or dt > timedelta(hours=MAX_GAP_HOURS):
-            skipped_gaps += 1
             continue
 
         energy_diff = cur["lifetime_energy_kwh"] - prev["lifetime_energy_kwh"]
-
-        if energy_diff < 0:
-            skipped_resets += 1
-            continue
-
-        if energy_diff == 0:
+        if energy_diff <= 0:
             continue
 
         t0, t1 = prev["timestamp"], cur["timestamp"]
@@ -77,16 +68,15 @@ def main():
             hourly_kwh[hour_start] += energy_diff * share
             cursor = segment_end
 
-    print("tunti,kwh")
-    for hour in sorted(hourly_kwh):
-        print(f"{hour.isoformat()},{hourly_kwh[hour]:.4f}")
+    return sorted(hourly_kwh.items())
 
-    if skipped_gaps or skipped_resets:
-        print(
-            f"# Huom: ohitettu {skipped_gaps} liian pitkää väliä ja "
-            f"{skipped_resets} epänormaalia laskurin pienenemistä",
-            file=sys.stderr,
-        )
+
+def main():
+    path = sys.argv[1] if len(sys.argv) > 1 else "goe_log.csv"
+    hourly = compute_hourly(path)
+    print("tunti,kwh")
+    for hour, kwh in hourly:
+        print(f"{hour.isoformat()},{kwh:.4f}")
 
 
 if __name__ == "__main__":

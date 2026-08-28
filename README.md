@@ -6,7 +6,16 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Ei vielä dataa - yhteenveto ilmestyy tähän automaattisesti ensimmäisen onnistuneen ajon jälkeen._
+_Päivitetty automaattisesti: 28.08.2026 klo 20:05 (UTC)_
+
+- **Yhteensä ladattu:** 14.5 kWh (28.08.2026 – 28.08.2026)
+- **Viimeiset 24 h:** 14.50 kWh
+- **Viimeiset 7 vrk:** 14.50 kWh
+- **Keskiarvo / vrk:** 348.00 kWh
+
+![Latausdata](summary_chart.png)
+
+_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv). Raakadata: [`goe_log.csv`](./goe_log.csv)._
 <!-- SUMMARY_END -->
 
 ## 1. Hae API-tunnukset

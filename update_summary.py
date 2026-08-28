@@ -86,8 +86,8 @@ def build_summary_markdown(hourly, chart_exists: bool) -> str:
         "",
         f"_Päivitetty automaattisesti: {updated_at}_",
         "",
-        "⚠️ _Energialukujen skaalaus on vielä kalibroimatta go-e-sovellusta vastaan - "
-        "luvut voivat olla virheellisiä kunnes tämä on vahvistettu._",
+        "_Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua "
+        "mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._",
         "",
         f"- **Yhteensä ladattu:** {total_kwh:.1f} kWh ({first_hour.strftime('%d.%m.%Y')} – {last_hour.strftime('%d.%m.%Y')})",
         f"- **Viimeiset 24 h:** {last_24h:.2f} kWh",

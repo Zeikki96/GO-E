@@ -91,19 +91,25 @@ def fetch_status(serial: str, token: str) -> dict:
 
 def parse_status(data: dict) -> dict:
     nrg = data.get("nrg", [0] * 16)
-    # nrg[11] = kokonaisteho yksikössä 0.01 kW
-    power_kw = (nrg[11] if len(nrg) > 11 else 0) / 100.0
+    # nrg[11]: dokumentaatio väittää yksikön olevan 0.01kW, mutta empiirinen
+    # kalibrointi (ks. README/keskustelu) osoitti todellisen yksikön olevan
+    # 0.001kW (W) tällä laitteella/laiteohjelmistolla - siis jako 1000:lla, ei 100:lla.
+    power_kw = (nrg[11] if len(nrg) > 11 else 0) / 1000.0
 
-    # dws = nykyisen session energia deca-watt-sekunteina (1 dws = 10 Ws) - OLETETTU yksikkö
+    # dws = nykyisen session energia - HUOM: tällä laitteella dws pysyy
+    # havaintojen perusteella jatkuvasti nollassa, eikä sitä voi käyttää
+    # luotettavasti. session_energy_kwh jätetään laskettuna dokumentin
+    # kaavalla, mutta sitä ei tule käyttää analytiikassa.
     dws_raw = int(data.get("dws", 0))
     session_energy_kwh = (dws_raw * 10) / 3_600_000.0
 
-    # eto = laturin elinikäinen kokonaisenergia yksikössä 0.1 kWh - OLETETTU yksikkö
-    # HUOM: tätä oletusta ei ole vielä vahvistettu oikeaksi (ks. kalibrointi
-    # goe-sovelluksen näyttämää sessiota vastaan) - siksi tallennamme myös
-    # raakaluvun (eto_raw) muuntamattomana rinnalle.
+    # eto: dokumentaatio väittää yksikön olevan 0.1kWh, mutta empiirinen
+    # kalibrointi tunnettua mittarilukemaa vasten (Energiaraportti-CSV,
+    # "Mittarin loppulukema") osoitti todellisen yksikön olevan 0.001kWh (Wh)
+    # - siis jako 1000:lla, ei 10:llä. Tämä on se kenttä jota
+    # laske_tuntikohtainen.py käyttää, joten tämä korjaus on kriittinen.
     eto_raw = int(data.get("eto", 0))
-    lifetime_energy_kwh = eto_raw / 10.0
+    lifetime_energy_kwh = eto_raw / 1000.0
 
     car_state = data.get("car", "")
 

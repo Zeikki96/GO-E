@@ -6,14 +6,14 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Päivitetty automaattisesti: 28.08.2026 klo 21:45 (UTC)_
+_Päivitetty automaattisesti: 28.08.2026 klo 22:00 (UTC)_
 
 _Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._
 
-- **Yhteensä ladattu:** 6.4 kWh (28.08.2026 – 28.08.2026)
-- **Viimeiset 24 h:** 6.42 kWh
-- **Viimeiset 7 vrk:** 6.42 kWh
-- **Keskiarvo / vrk:** _lasketaan kun dataa on kertynyt vähintään vuorokausi (nyt 1.0 h)_
+- **Yhteensä ladattu:** 8.5 kWh (28.08.2026 – 28.08.2026)
+- **Viimeiset 24 h:** 8.51 kWh
+- **Viimeiset 7 vrk:** 8.51 kWh
+- **Keskiarvo / vrk:** _lasketaan kun dataa on kertynyt vähintään vuorokausi (nyt 2.0 h)_
 
 ![Latausdata](summary_chart.png)
 

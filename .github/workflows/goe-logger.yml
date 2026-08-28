@@ -23,16 +23,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Asenna riippuvuudet (yhteenvetokaaviota varten)
+        run: pip install matplotlib
+
       - name: Kysy go-e:n tila ja lisää lokiin
         env:
           GOE_SERIAL: ${{ secrets.GOE_SERIAL }}
           GOE_TOKEN: ${{ secrets.GOE_TOKEN }}
         run: python3 goe_logger.py --once
 
-      - name: Committaa päivittynyt loki
+      - name: Päivitä tuntikohtainen data ja yhteenveto
+        run: python3 update_summary.py
+
+      - name: Committaa päivittynyt loki ja yhteenveto
         run: |
           git config user.name "goe-logger-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add goe_log.csv
-          git diff --staged --quiet || git commit -m "Lisätty lataustilan mittaus $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git add goe_log.csv tuntikohtainen.csv summary_chart.png README.md
+          git diff --staged --quiet || git commit -m "Päivitetty lataustilan mittaus ja yhteenveto $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push

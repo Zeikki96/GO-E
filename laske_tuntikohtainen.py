@@ -2,12 +2,21 @@
 """
 Muuntaa goe_log.csv-lokin tuntikohtaiseksi energiankulutukseksi (kWh/tunti).
 
-Periaate: koska power_kw on hetkellinen teho joka POLL_INTERVAL_SECONDS
-välein, kunkin mittauspisteen energiasisältö on
-    power_kw * (aika edelliseen mittaukseen tunteina)
-Nämä summataan tunneittain. Tämä on paljon tarkempi tapa kuin
-sessiokohtaisen kWh:n approksimointi, koska nyt käytössä on oikea
-mitattu teho jokaiselta pollausväliltä.
+MENETELMÄ (tarkka, ei approksimoitu):
+go-e:n "lifetime_energy_kwh" (API-kenttä eto) on laturin elinikäinen,
+aina kasvava kokonaisenergialaskuri - se ei nollaudu koskaan, ei edes
+kun yksittäinen lataussessio päättyy. Se toimii siis kuin sähkömittarin
+lukema: kahden peräkkäisen mittauksen EROTUS kertoo täsmälleen, paljonko
+energiaa kului niiden välissä - ei tarvitse arvata tehon pysyneen
+vakiona, koska laturi on jo itse integroinut sen puolestamme.
+
+Tämä on tarkempi kuin teho x aika -approksimaatio, koska se ei oleta
+mitään latauksen käyttäytymisestä otosten välissä (lataus on voinut
+käynnistyä, pysähtyä tai vaihtaa tehoa - erotus on silti oikea).
+
+Jos kahden otoksen välinen aika on epänormaalin pitkä (esim. skripti
+ollut pois päältä), väli ohitetaan, ettei siihen kertyneestä energiasta
+tule virheellisesti yhteen tuntiin lisättyä piikkiä.
 
 Käyttö:
     python3 laske_tuntikohtainen.py [polku/goe_log.csv]
@@ -15,8 +24,11 @@ Käyttö:
 
 import sys
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
+
+MAX_GAP_HOURS = 2  # jos otosten väli on tätä pidempi, ohitetaan (esim. skripti ollut pois päältä)
+
 
 def main():
     path = sys.argv[1] if len(sys.argv) > 1 else "goe_log.csv"
@@ -26,28 +38,55 @@ def main():
         reader = csv.DictReader(f)
         for r in reader:
             r["timestamp"] = datetime.fromisoformat(r["timestamp"])
-            r["power_kw"] = float(r["power_kw"])
+            r["lifetime_energy_kwh"] = float(r["lifetime_energy_kwh"])
             rows.append(r)
 
     rows.sort(key=lambda r: r["timestamp"])
 
     hourly_kwh = defaultdict(float)
+    skipped_gaps = 0
+    skipped_resets = 0
 
     for i in range(1, len(rows)):
         prev, cur = rows[i - 1], rows[i]
-        dt_hours = (cur["timestamp"] - prev["timestamp"]).total_seconds() / 3600.0
-        if dt_hours <= 0 or dt_hours > 1:
-            # Ohitetaan epänormaalin pitkät (esim. skripti ollut pois päältä) välit,
-            # ettei niistä synny valeenergiaa.
+
+        dt = cur["timestamp"] - prev["timestamp"]
+        if dt <= timedelta(0) or dt > timedelta(hours=MAX_GAP_HOURS):
+            skipped_gaps += 1
             continue
-        # Käytetään edellisen mittauksen tehoa kuvaamaan koko väliä (yksinkertaistus)
-        energy = prev["power_kw"] * dt_hours
-        hour_bucket = prev["timestamp"].replace(minute=0, second=0, microsecond=0)
-        hourly_kwh[hour_bucket] += energy
+
+        energy_diff = cur["lifetime_energy_kwh"] - prev["lifetime_energy_kwh"]
+
+        if energy_diff < 0:
+            skipped_resets += 1
+            continue
+
+        if energy_diff == 0:
+            continue
+
+        t0, t1 = prev["timestamp"], cur["timestamp"]
+        total_seconds = (t1 - t0).total_seconds()
+
+        cursor = t0
+        while cursor < t1:
+            hour_start = cursor.replace(minute=0, second=0, microsecond=0)
+            next_hour = hour_start + timedelta(hours=1)
+            segment_end = min(t1, next_hour)
+            segment_seconds = (segment_end - cursor).total_seconds()
+            share = segment_seconds / total_seconds
+            hourly_kwh[hour_start] += energy_diff * share
+            cursor = segment_end
 
     print("tunti,kwh")
     for hour in sorted(hourly_kwh):
         print(f"{hour.isoformat()},{hourly_kwh[hour]:.4f}")
+
+    if skipped_gaps or skipped_resets:
+        print(
+            f"# Huom: ohitettu {skipped_gaps} liian pitkää väliä ja "
+            f"{skipped_resets} epänormaalia laskurin pienenemistä",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

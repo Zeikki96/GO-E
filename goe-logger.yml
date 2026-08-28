@@ -1,0 +1,38 @@
+name: go-e charger logger
+
+on:
+  schedule:
+    # Ajetaan 15 minuutin välein. GitHub ei takaa tarkkaa ajoitusta
+    # ruuhka-aikoina (voi venyä muutamalla minuutilla) - tuntitason
+    # analyysiin tämä ei haittaa.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}   # mahdollistaa myös manuaalisen ajon "Run workflow" -napista
+
+permissions:
+  contents: write   # workflow tarvitsee kirjoitusoikeuden committaakseen datan takaisin repoon
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Kysy go-e:n tila ja lisää lokiin
+        env:
+          GOE_SERIAL: ${{ secrets.GOE_SERIAL }}
+          GOE_TOKEN: ${{ secrets.GOE_TOKEN }}
+        run: python3 goe_logger.py --once
+
+      - name: Committaa päivittynyt loki
+        run: |
+          git config user.name "goe-logger-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add goe_log.csv
+          git diff --staged --quiet || git commit -m "Lisätty lataustilan mittaus $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push

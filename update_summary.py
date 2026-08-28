@@ -71,8 +71,7 @@ def build_summary_markdown(hourly, chart_exists: bool) -> str:
     total_kwh = sum(kwh for _, kwh in hourly)
     first_hour = hourly[0][0]
     last_hour = hourly[-1][0]
-    span_days = max((last_hour - first_hour).total_seconds() / 86400, 1e-9)
-    avg_per_day = total_kwh / span_days
+    span_days = (last_hour - first_hour).total_seconds() / 86400
 
     # viimeisen 24h ja 7vrk summat
     now = last_hour
@@ -87,12 +86,24 @@ def build_summary_markdown(hourly, chart_exists: bool) -> str:
         "",
         f"_Päivitetty automaattisesti: {updated_at}_",
         "",
+        "⚠️ _Energialukujen skaalaus on vielä kalibroimatta go-e-sovellusta vastaan - "
+        "luvut voivat olla virheellisiä kunnes tämä on vahvistettu._",
+        "",
         f"- **Yhteensä ladattu:** {total_kwh:.1f} kWh ({first_hour.strftime('%d.%m.%Y')} – {last_hour.strftime('%d.%m.%Y')})",
         f"- **Viimeiset 24 h:** {last_24h:.2f} kWh",
         f"- **Viimeiset 7 vrk:** {last_7d:.2f} kWh",
-        f"- **Keskiarvo / vrk:** {avg_per_day:.2f} kWh",
-        "",
     ]
+
+    if span_days >= 1:
+        avg_per_day = total_kwh / span_days
+        lines.append(f"- **Keskiarvo / vrk:** {avg_per_day:.2f} kWh")
+    else:
+        lines.append(
+            f"- **Keskiarvo / vrk:** _lasketaan kun dataa on kertynyt vähintään vuorokausi "
+            f"(nyt {span_days*24:.1f} h)_"
+        )
+
+    lines.append("")
 
     if chart_exists:
         lines.append(f"![Latausdata]({CHART_PATH})")

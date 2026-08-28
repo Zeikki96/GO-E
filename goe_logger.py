@@ -94,13 +94,16 @@ def parse_status(data: dict) -> dict:
     # nrg[11] = kokonaisteho yksikössä 0.01 kW
     power_kw = (nrg[11] if len(nrg) > 11 else 0) / 100.0
 
-    # dws = nykyisen session energia deca-watt-sekunteina (1 dws = 10 Ws)
-    dws = int(data.get("dws", 0))
-    session_energy_kwh = (dws * 10) / 3_600_000.0
+    # dws = nykyisen session energia deca-watt-sekunteina (1 dws = 10 Ws) - OLETETTU yksikkö
+    dws_raw = int(data.get("dws", 0))
+    session_energy_kwh = (dws_raw * 10) / 3_600_000.0
 
-    # eto = laturin elinikäinen kokonaisenergia yksikössä 0.1 kWh
-    eto = int(data.get("eto", 0))
-    lifetime_energy_kwh = eto / 10.0
+    # eto = laturin elinikäinen kokonaisenergia yksikössä 0.1 kWh - OLETETTU yksikkö
+    # HUOM: tätä oletusta ei ole vielä vahvistettu oikeaksi (ks. kalibrointi
+    # goe-sovelluksen näyttämää sessiota vastaan) - siksi tallennamme myös
+    # raakaluvun (eto_raw) muuntamattomana rinnalle.
+    eto_raw = int(data.get("eto", 0))
+    lifetime_energy_kwh = eto_raw / 10.0
 
     car_state = data.get("car", "")
 
@@ -110,6 +113,8 @@ def parse_status(data: dict) -> dict:
         "power_kw": round(power_kw, 3),
         "session_energy_kwh": round(session_energy_kwh, 4),
         "lifetime_energy_kwh": round(lifetime_energy_kwh, 3),
+        "dws_raw": dws_raw,
+        "eto_raw": eto_raw,
     }
 
 

@@ -1,5 +1,5 @@
 name: go-e charger logger
-
+-
 on:
   schedule:
     # Ajetaan 15 minuutin välein. GitHub ei takaa tarkkaa ajoitusta

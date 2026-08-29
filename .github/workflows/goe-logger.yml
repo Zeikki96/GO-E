@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name "goe-logger-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add goe_log.csv tuntikohtainen.csv summary_chart.png README.md
+          git add goe_log.csv tuntikohtainen.csv kustannukset.csv summary_chart.png README.md
           git diff --staged --quiet || git commit -m "Päivitetty lataustilan mittaus ja yhteenveto $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           git push

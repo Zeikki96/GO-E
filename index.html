@@ -261,6 +261,18 @@ function helsinkiParts(date) {
   return { month: parseInt(map.month, 10), weekday: map.weekday, hour: parseInt(map.hour, 10) };
 }
 
+// Suomen paikallisajan PÄIVÄMÄÄRÄ (ei kellonaika) - kriittinen päivittäiselle
+// ryhmittelylle. en-CA-locale antaa suoraan YYYY-MM-DD-muodon. toISOString()
+// EI kelpaa tähän, koska se antaa UTC-kalenteripäivän - esim. klo 00-03
+// Suomen aikaa on UTC:ssa vielä edellistä päivää kesäaikana, jolloin
+// yölataukset putoaisivat väärän päivän kohdalle kaaviossa.
+const HELSINKI_DATE_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function helsinkiDateKey(date) {
+  return HELSINKI_DATE_FMT.format(date); // "2026-08-29"
+}
+
 // Talviarkipäivä: marras-maaliskuu (11,12,1,2,3), ma-pe, klo 07-22.
 // Kaikki muu (talven yöt/viikonloput, koko kesä 24h) = "muu aika".
 function isWinterWeekday(date) {
@@ -354,7 +366,7 @@ function render(){
   // Päivittäiset summat kaavioihin
   const dailyKwh = {}, dailyCost = {};
   withPrice.forEach(r => {
-    const day = r.hour.toISOString().slice(0,10);
+    const day = helsinkiDateKey(r.hour);
     dailyKwh[day] = (dailyKwh[day]||0) + r.kwh;
     if (r.totalCost !== null) dailyCost[day] = (dailyCost[day]||0) + r.totalCost;
   });
@@ -415,7 +427,7 @@ function drawBarChart(canvasId, dataObj, color){
     ctx.fillStyle = color.trim();
     ctx.fillRect(x, y, barW, barH);
     ctx.fillStyle = '#8b96a8'; ctx.font = '9px monospace'; ctx.textAlign='center';
-    const label = new Date(d).toLocaleDateString('fi-FI', {day:'2-digit', month:'2-digit'});
+    const label = new Date(d).toLocaleDateString('fi-FI', {day:'2-digit', month:'2-digit', timeZone:'UTC'});
     ctx.fillText(label, x+barW/2, 220-10);
   });
 }

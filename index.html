@@ -203,11 +203,13 @@
 
 <script>
 // ---- Konfiguraatio ----
-const GH_USER = "Zeikki96";
-const GH_REPO = "GO-E";
-const GH_BRANCH = "main";
-// jsDelivr peilaa GitHub-tiedostot ja tukee CORS:ia (raw.githubusercontent.com ei tue sitä selaimesta)
-const CSV_URL = `https://cdn.jsdelivr.net/gh/${GH_USER}/${GH_REPO}@${GH_BRANCH}/kustannukset.csv`;
+// Haetaan CSV suoraan samasta origin:ista (GitHub Pages) jsDelivr:n sijaan,
+// koska jsDelivr pitää tiedostoja välimuistissa tuntikausia - sopimaton
+// 15 min välein päivittyvälle datalle. Sama origin myös välttää CORS-
+// ongelman ilman ulkopuolista CDN:ää. Cache-bust-parametri (?t=...)
+// pakottaa selaimen hakemaan aina tuoreimman version omasta
+// välimuististaankin.
+const CSV_URL = `./kustannukset.csv?t=${Date.now()}`;
 
 const VAT_RATE = 0.255;
 

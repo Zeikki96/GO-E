@@ -133,21 +133,33 @@ def append_row(row: dict):
         writer.writerow(row)
 
 
-def poll_once(cfg: dict) -> bool:
-    """Tekee yhden kyselyn ja lisää rivin lokiin. Palauttaa True onnistuessa."""
+def poll_once(cfg: dict) -> str:
+    """Tekee yhden kyselyn ja lisää rivin lokiin.
+    Palauttaa: 'ok' (rivi lisätty), 'offline' (laite ei tavoitettavissa -
+    normaali tilanne, ei virhe), tai 'error' (oikea, huomiota vaativa virhe)."""
     try:
         data = fetch_status(cfg["serial"], cfg["token"])
         row = parse_status(data)
         append_row(row)
         print(row)
-        return True
+        return "ok"
     except urllib.error.HTTPError as e:
-        print(f"HTTP-virhe ({e.code}): laturi voi olla offline tai token väärä.")
+        if e.code == 403:
+            # go-e Cloud palauttaa 403:n kun laturi ei ole tällä hetkellä
+            # yhteydessä pilveen (esim. auto ei kytkettynä, laturi ilman
+            # verkkoyhteyttä). Tämä on täysin normaali, odotettu tilanne -
+            # ei virhe josta pitäisi hälyttää tai jonka pitäisi näkyä
+            # epäonnistuneena ajona GitHub Actionsissa.
+            print("Laturi ei ole tavoitettavissa (offline) - normaali tilanne, ei virhe. Ohitetaan tämä kierros.")
+            return "offline"
+        print(f"HTTP-virhe ({e.code}): odottamaton, tarkista token/asetukset.")
+        return "error"
     except urllib.error.URLError as e:
         print(f"Verkkovirhe: {e}")
+        return "error"
     except Exception as e:
         print(f"Odottamaton virhe: {e}")
-    return False
+        return "error"
 
 
 def main():
@@ -158,8 +170,10 @@ def main():
     once_mode = "--once" in sys.argv or os.environ.get("GITHUB_ACTIONS") == "true"
 
     if once_mode:
-        ok = poll_once(cfg)
-        sys.exit(0 if ok else 1)
+        result = poll_once(cfg)
+        # "ok" ja "offline" ovat molemmat normaaleja lopputuloksia (exit 0) -
+        # vain "error" (oikea, huomiota vaativa ongelma) epäonnistuttaa ajon.
+        sys.exit(0 if result in ("ok", "offline") else 1)
 
     interval = cfg.get("poll_interval_seconds", POLL_INTERVAL_SECONDS)
     print(f"go-e logger käynnissä. Kirjoitetaan lokiin: {LOG_PATH}")

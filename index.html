@@ -65,7 +65,7 @@
     margin: 0 0 8px; letter-spacing: -0.01em; line-height: 1.1;
   }
   h1 span{ color: var(--text-dim); font-weight: 400; }
-  .sub{ color: var(--text-dim); font-size: 15px; max-width: 60ch; line-height:1.5;}
+  .sub{ color: var(--text-dim); font-size: 15px; max-width: 62ch; line-height:1.5;}
 
   main{ max-width: 980px; margin: 0 auto; padding: 0 24px 80px; position:relative; }
 
@@ -87,11 +87,22 @@
     background: var(--bg-panel); border:1px solid var(--line); border-radius:10px;
     padding: 24px; margin-bottom: 24px;
   }
-  .panel h2{
+  .panel h2, .panel summary{
     font-family: var(--mono); font-size: 13px; text-transform:uppercase;
     letter-spacing:.1em; color: var(--text-dim); margin: 0 0 18px;
-    display:flex; align-items:center; justify-content:space-between;
+    display:flex; align-items:center; gap:8px;
   }
+  details.panel summary{
+    cursor: pointer; list-style: none; user-select: none;
+  }
+  details.panel summary::-webkit-details-marker{ display:none; }
+  details.panel summary::before{
+    content: '▸'; display:inline-block; color: var(--cyan);
+    transition: transform .15s; font-size: 11px; flex-shrink:0;
+  }
+  details.panel[open] summary::before{ transform: rotate(90deg); }
+  details.panel[open] summary{ margin-bottom: 18px; }
+  details.panel:not([open]) summary{ margin-bottom: 0; }
 
   .controls{ display:flex; flex-wrap:wrap; gap: 28px; align-items:center; }
   .toggle{
@@ -117,11 +128,16 @@
     opacity:1; transition:.15s;
   }
   .margin-input.disabled{ opacity:.35; pointer-events:none; }
-  .margin-input input[type=number]{
-    width: 70px; background: var(--bg); border:1px solid var(--line); color: var(--amber);
+  .margin-input input[type=number], .margin-input input[type=date]{
+    background: var(--bg); border:1px solid var(--line); color: var(--amber);
     font-family: var(--mono); font-size:13px; padding: 6px 8px; border-radius:5px;
+    color-scheme: dark;
   }
-  .margin-input input[type=number]:focus{ outline: 1px solid var(--amber); }
+  .margin-input input[type=number]{ width: 70px; }
+  .margin-input input[type=date]{ width: 145px; }
+  .margin-input input:focus{ outline: 1px solid var(--amber); }
+
+  .field-note{ color: var(--text-dim); font-size:12px; margin: 14px 0 0; line-height:1.5; }
 
   .period-btn{
     font-family: var(--mono); font-size: 12.5px; color: var(--text-dim);
@@ -142,10 +158,8 @@
   footer{
     max-width:980px; margin: 0 auto; padding: 0 24px 60px;
     color: var(--text-dim); font-size: 12.5px; font-family: var(--mono);
-    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px;
   }
-  footer a{ color: var(--cyan); text-decoration:none; }
-  footer a:hover{ text-decoration:underline; }
 
   .empty{ color: var(--text-dim); font-family: var(--mono); font-size:13px; padding: 30px 0; text-align:center;}
   .skeleton{ color: var(--text-dim); }
@@ -168,8 +182,8 @@
 
 <main>
 
-  <div class="panel">
-    <h2 data-i18n="periodHeading"></h2>
+  <details class="panel" open>
+    <summary data-i18n="periodHeading"></summary>
     <div class="controls" id="periodFilter">
       <button class="period-btn active" data-period="all" data-i18n="periodAll"></button>
       <button class="period-btn" data-period="week" data-i18n="periodWeek"></button>
@@ -177,10 +191,20 @@
       <button class="period-btn" data-period="quarter" data-i18n="periodQuarter"></button>
       <button class="period-btn" data-period="ytd" data-i18n="periodYtd"></button>
     </div>
-  </div>
+    <div class="controls" style="margin-top:16px;">
+      <div class="margin-input">
+        <span style="color:var(--text-dim)" data-i18n="periodFromLabel"></span>
+        <input type="date" id="customStartDate">
+      </div>
+      <div class="margin-input">
+        <span style="color:var(--text-dim)" data-i18n="periodToLabel"></span>
+        <input type="date" id="customEndDate">
+      </div>
+    </div>
+  </details>
 
-  <div class="panel">
-    <h2 data-i18n="pricingHeading"></h2>
+  <details class="panel" open>
+    <summary data-i18n="pricingHeading"></summary>
     <div class="controls">
       <label class="toggle">
         <input type="checkbox" id="vatToggle" checked>
@@ -197,10 +221,11 @@
         <input type="number" id="marginValue" value="0.39" step="0.01" min="0">
       </div>
     </div>
-  </div>
+    <p class="field-note" data-i18n="marginNote"></p>
+  </details>
 
-  <div class="panel">
-    <h2><span data-i18n="transferHeading"></span> <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;" data-i18n="transferHeadingSub"></span></h2>
+  <details class="panel" open>
+    <summary><span data-i18n="transferHeading"></span> <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;" data-i18n="transferHeadingSub"></span></summary>
     <div class="controls">
       <label class="toggle">
         <input type="checkbox" id="transferToggle" checked>
@@ -222,8 +247,8 @@
         <input type="number" id="taxRateValue" value="2.92" step="0.01" min="0">
       </div>
     </div>
-    <p style="color:var(--text-dim); font-size:12px; margin: 14px 0 0;" data-i18n="transferNote"></p>
-  </div>
+    <p class="field-note" data-i18n="transferNote"></p>
+  </details>
 
   <div class="stat-row" id="statRow">
     <div class="stat"><div class="label" data-i18n="statTotalCharged"></div><div class="value skeleton">–</div></div>
@@ -233,19 +258,19 @@
     <div class="stat"><div class="label" data-i18n="statPeriod"></div><div class="value skeleton" style="font-size:16px">–</div></div>
   </div>
 
-  <div class="panel">
-    <h2 data-i18n="kwhChartHeading"></h2>
+  <details class="panel" id="kwhChartPanel">
+    <summary data-i18n="kwhChartHeading"></summary>
     <canvas id="kwhChart"></canvas>
-  </div>
+  </details>
 
-  <div class="panel">
-    <h2 data-i18n="costChartHeading"></h2>
+  <details class="panel" id="costChartPanel">
+    <summary data-i18n="costChartHeading"></summary>
     <canvas id="costChart"></canvas>
-  </div>
+  </details>
 
-  <div class="panel">
-    <h2><span data-i18n="drivingHeading"></span> <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;" data-i18n="drivingHeadingSub"></span></h2>
-    <p style="color:var(--text-dim); font-size:12px; margin:0 0 16px;" data-i18n="drivingNote"></p>
+  <details class="panel" open>
+    <summary><span data-i18n="drivingHeading"></span> <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;" data-i18n="drivingHeadingSub"></span></summary>
+    <p class="field-note" style="margin:0 0 16px;" data-i18n="drivingNote"></p>
     <div class="controls">
       <div class="margin-input">
         <span style="color:var(--text-dim)" data-i18n="effSummerLabel"></span>
@@ -261,10 +286,10 @@
       <div class="stat cyan"><div class="label" data-i18n="winterStatLabel"></div><div class="value" id="costPer100Winter">–</div></div>
       <div class="stat"><div class="label" data-i18n="avgPriceLabel"></div><div class="value" id="avgPriceForEstimate" style="font-size:20px;">–</div></div>
     </div>
-  </div>
+  </details>
 
-  <div class="panel" id="tablePanel" style="display:none">
-    <h2 data-i18n="tableHeading"></h2>
+  <details class="panel" id="tablePanel" style="display:none" open>
+    <summary data-i18n="tableHeading"></summary>
     <div style="max-height:320px; overflow:auto;">
       <table>
         <thead>
@@ -276,12 +301,11 @@
         <tbody id="tableBody"></tbody>
       </table>
     </div>
-  </div>
+  </details>
 
 </main>
 
 <footer>
-  <span><span data-i18n="footerData"></span> <a href="./kustannukset.csv">kustannukset.csv</a> · <a href="./goe_log.csv">goe_log.csv</a> · <a href="./README.md">README</a></span>
   <span id="lastUpdated">–</span>
 </footer>
 
@@ -289,16 +313,18 @@
 // ---- Käännökset ----
 const TRANSLATIONS = {
   en: {
-    eyebrow: 'LIVE — updates every 15 min',
+    eyebrow: 'LIVE',
     title: 'Charging Tracker', titleSub: 'go-e × spot price',
-    subtitle: 'Charging power history from my EV, combined with Finnish electricity spot prices. Data is collected automatically via GitHub Actions.',
+    subtitle: 'Data is collected automatically via GitHub Actions, which connects to the go-e Cloud API to retrieve charging data and fetches Finnish electricity spot prices for the corresponding charging period.',
     periodHeading: 'Time period', periodAll: 'All', periodWeek: 'This week',
     periodMonth: 'This month', periodQuarter: 'This quarter', periodYtd: 'Year to date',
+    periodFromLabel: 'From:', periodToLabel: 'To:',
     pricingHeading: 'Pricing settings', vatLabel: 'VAT (25.5\u00a0%)', marginLabel: 'Margin', cKwh: 'c/kWh:',
+    marginNote: 'The margin is the fee your electricity retailer adds on top of the spot price, as defined in your electricity contract.',
     transferHeading: 'Grid transfer', transferHeadingSub: '(your utility contract)',
     includeTransfer: 'Include transfer + tax',
     winterRateLabel: 'Winter weekday (Nov-Mar, Mon-Fri, 07-22) c/kWh:',
-    offPeakLabel: 'Off-peak c/kWh:', taxLabel: 'Electricity tax (Class I) c/kWh:',
+    offPeakLabel: 'Other times c/kWh:', taxLabel: 'Electricity tax (Class I) c/kWh:',
     transferNote: 'Grid transfer and electricity tax are a separate cost from energy - the margin does not apply to them. VAT is calculated on the full total (energy + transfer + tax) together, the same way it appears on your electricity bill.',
     statTotalCharged: 'Total charged', statEnergyCost: 'Energy cost', statTransferTax: 'Transfer + tax',
     statTotal: 'Total', statPeriod: 'Period',
@@ -310,18 +336,20 @@ const TRANSLATIONS = {
     avgPriceLabel: 'Average price used',
     tableHeading: 'Recent hours', thHour: 'Hour', thSpot: 'Spot c/kWh', thEnergy: 'Energy c/kWh',
     thTransfer: 'Transfer c/kWh', thCost: 'Cost \u20ac',
-    footerData: 'Data:', latestReading: 'Latest reading:',
+    latestReading: 'Latest reading:',
     noDataYet: 'No data yet. The summary will appear here after the first successful run.',
     loadFailed: msg => `Failed to load data (${msg}). Check that the repo is public and kustannukset.csv exists.`,
     locale: 'en-GB', unitSnt: 'c/kWh',
   },
   fi: {
-    eyebrow: 'LIVE — päivittyy 15 min välein',
+    eyebrow: 'LIVE',
     title: 'Latausseuranta', titleSub: 'go-e × pörssisähkö',
-    subtitle: 'Sähköautoni lataustehon mittaushistoria yhdistettynä Suomen pörssisähkön tuntihintoihin. Data kerätään automaattisesti GitHub Actionsilla.',
+    subtitle: 'Data kerätään automaattisesti GitHub Actionsilla, joka hakee lataustiedot go-e Cloud -rajapinnasta ja noutaa Suomen pörssisähkön tuntihinnat kyseiselle latausjaksolle.',
     periodHeading: 'Ajanjakso', periodAll: 'Kaikki', periodWeek: 'Tämä viikko',
     periodMonth: 'Tämä kuukausi', periodQuarter: 'Tämä kvartaali', periodYtd: 'Vuoden alusta',
+    periodFromLabel: 'Alkaen:', periodToLabel: 'Asti:',
     pricingHeading: 'Hinnoitteluasetukset', vatLabel: 'ALV (25,5\u00a0%)', marginLabel: 'Marginaali', cKwh: 'snt/kWh:',
+    marginNote: 'Marginaali on sähkösopimuksesi mukainen lisä, jonka sähkönmyyjäsi lisää pörssihinnan päälle.',
     transferHeading: 'Sähkönsiirto', transferHeadingSub: '(oma verkkoyhtiön sopimus)',
     includeTransfer: 'Sisällytä siirto + vero',
     winterRateLabel: 'Talviarkipäivä (11-3, ma-pe, 07-22) snt/kWh:',
@@ -337,7 +365,7 @@ const TRANSLATIONS = {
     avgPriceLabel: 'Käytetty keskihinta',
     tableHeading: 'Viimeisimmät tunnit', thHour: 'Tunti', thSpot: 'Spot snt/kWh', thEnergy: 'Energia snt/kWh',
     thTransfer: 'Siirto snt/kWh', thCost: 'Kustannus \u20ac',
-    footerData: 'Data:', latestReading: 'Uusin mittaus:',
+    latestReading: 'Uusin mittaus:',
     noDataYet: 'Ei vielä dataa. Yhteenveto ilmestyy ensimmäisen onnistuneen ajon jälkeen.',
     loadFailed: msg => `Datan lataus epäonnistui (${msg}). Tarkista että repo on julkinen ja kustannukset.csv on olemassa.`,
     locale: 'fi-FI', unitSnt: 'snt/kWh',
@@ -452,35 +480,44 @@ function todayHelsinkiParts() {
   return { y, m, d };
 }
 
-// Palauttaa "YYYY-MM-DD" jaksorajan (mukaan lukien), tai null = ei rajausta.
-function periodStartKey(period) {
+// Palauttaa {start, end} "YYYY-MM-DD" jaksorajat (molemmat mukaan lukien),
+// null = ei rajaa siihen suuntaan.
+function getPeriodRange(period) {
   const { y, m, d } = todayHelsinkiParts();
   const pad = n => String(n).padStart(2, '0');
 
+  if (period === 'custom') {
+    const startVal = document.getElementById('customStartDate').value || null;
+    const endVal = document.getElementById('customEndDate').value || null;
+    return { start: startVal, end: endVal };
+  }
   if (period === 'week') {
     const dateObj = new Date(Date.UTC(y, m - 1, d));
     const dow = dateObj.getUTCDay(); // 0=su,1=ma,...
     const diffToMonday = (dow === 0) ? 6 : dow - 1;
     dateObj.setUTCDate(dateObj.getUTCDate() - diffToMonday);
-    return dateObj.toISOString().slice(0, 10);
+    return { start: dateObj.toISOString().slice(0, 10), end: null };
   }
-  if (period === 'month') return `${y}-${pad(m)}-01`;
+  if (period === 'month') return { start: `${y}-${pad(m)}-01`, end: null };
   if (period === 'quarter') {
     const qStartMonth = Math.floor((m - 1) / 3) * 3 + 1;
-    return `${y}-${pad(qStartMonth)}-01`;
+    return { start: `${y}-${pad(qStartMonth)}-01`, end: null };
   }
-  if (period === 'ytd') return `${y}-01-01`;
-  return null; // 'all'
+  if (period === 'ytd') return { start: `${y}-01-01`, end: null };
+  return { start: null, end: null }; // 'all'
 }
 
 function render(){
   const vatOn = document.getElementById('vatToggle').checked;
   const transferOn = document.getElementById('transferToggle').checked;
 
-  const startKey = periodStartKey(currentPeriod);
-  const activeRows = startKey
-    ? rows.filter(r => helsinkiDateKey(r.hour) >= startKey)
-    : rows;
+  const { start: startKey, end: endKey } = getPeriodRange(currentPeriod);
+  const activeRows = rows.filter(r => {
+    const day = helsinkiDateKey(r.hour);
+    if (startKey && day < startKey) return false;
+    if (endKey && day > endKey) return false;
+    return true;
+  });
 
   const statRow = document.getElementById('statRow');
   const stats = statRow.querySelectorAll('.value');
@@ -539,8 +576,14 @@ function render(){
     dailyKwh[day] = (dailyKwh[day]||0) + r.kwh;
     if (r.totalCost !== null) dailyCost[day] = (dailyCost[day]||0) + r.totalCost;
   });
-  drawBarChart('kwhChart', dailyKwh, getComputedStyle(document.documentElement).getPropertyValue('--amber'));
-  drawBarChart('costChart', dailyCost, getComputedStyle(document.documentElement).getPropertyValue('--cyan'));
+  // Kaaviot piirretään vain jos paneeli on auki - collapsed <details> antaa
+  // leveydeksi 0, jolloin Canvas piirtyisi virheellisesti.
+  if (document.getElementById('kwhChartPanel').open) {
+    drawBarChart('kwhChart', dailyKwh, getComputedStyle(document.documentElement).getPropertyValue('--amber'));
+  }
+  if (document.getElementById('costChartPanel').open) {
+    drawBarChart('costChart', dailyCost, getComputedStyle(document.documentElement).getPropertyValue('--cyan'));
+  }
 
   // Taulukko: viimeiset 40 tuntia (suodatetusta jaksosta)
   const last40 = withPrice.slice(-40).reverse();
@@ -656,7 +699,25 @@ document.querySelectorAll('.period-btn').forEach(btn => {
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentPeriod = btn.dataset.period;
+    document.getElementById('customStartDate').value = '';
+    document.getElementById('customEndDate').value = '';
     if (rows.length) render();
+  });
+});
+
+['customStartDate','customEndDate'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    currentPeriod = 'custom';
+    if (rows.length) render();
+  });
+});
+
+// Kaavioiden Canvas-leveys on 0 kun <details> on kiinni (collapsed), joten
+// piirretään ne uudestaan aina kun paneeli avataan.
+['kwhChartPanel','costChartPanel'].forEach(id => {
+  document.getElementById(id).addEventListener('toggle', function(){
+    if (this.open && rows.length) render();
   });
 });
 

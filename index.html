@@ -290,6 +290,7 @@
 
   <details class="panel" id="tablePanel" style="display:none" open>
     <summary data-i18n="tableHeading"></summary>
+    <p class="field-note" style="margin:0 0 14px;" data-i18n="tableNote"></p>
     <div style="max-height:320px; overflow:auto;">
       <table>
         <thead>
@@ -334,8 +335,9 @@ const TRANSLATIONS = {
     effSummerLabel: 'Summer consumption, Wh/km:', effWinterLabel: 'Winter consumption, Wh/km:',
     summerStatLabel: '\u2600\ufe0f Summer, \u20ac/100km', winterStatLabel: '\u2744\ufe0f Winter, \u20ac/100km',
     avgPriceLabel: 'Average price used',
-    tableHeading: 'Recent hours', thHour: 'Hour', thSpot: 'Spot c/kWh', thEnergy: 'Energy c/kWh',
-    thTransfer: 'Transfer c/kWh', thCost: 'Cost \u20ac',
+    tableHeading: 'Recent hours', tableNote: 'Spot = raw market price (no margin, no VAT). Energy price and Transfer price are the rates actually charged per kWh (margin/transfer+tax included, VAT included when enabled) - kWh × rate = the corresponding part of Total cost.',
+    thHour: 'Hour', thSpot: 'Spot (raw) c/kWh', thEnergy: 'Energy price c/kWh',
+    thTransfer: 'Transfer price c/kWh', thCost: 'Total cost \u20ac',
     latestReading: 'Latest reading:',
     noDataYet: 'No data yet. The summary will appear here after the first successful run.',
     loadFailed: msg => `Failed to load data (${msg}). Check that the repo is public and kustannukset.csv exists.`,
@@ -363,8 +365,9 @@ const TRANSLATIONS = {
     effSummerLabel: 'Kulutus kesällä, Wh/km:', effWinterLabel: 'Kulutus talvella, Wh/km:',
     summerStatLabel: '\u2600\ufe0f Kesä, \u20ac/100km', winterStatLabel: '\u2744\ufe0f Talvi, \u20ac/100km',
     avgPriceLabel: 'Käytetty keskihinta',
-    tableHeading: 'Viimeisimmät tunnit', thHour: 'Tunti', thSpot: 'Spot snt/kWh', thEnergy: 'Energia snt/kWh',
-    thTransfer: 'Siirto snt/kWh', thCost: 'Kustannus \u20ac',
+    tableHeading: 'Viimeisimmät tunnit', tableNote: 'Spot = raakamarkkinahinta (ei marginaalia, ei ALV:tä). Energiahinta ja Siirtohinta ovat todelliset veloitettavat snt/kWh-hinnat (marginaali/siirto+vero mukana, ALV mukana jos päällä) - kWh × hinta = vastaava osuus Kokonaishinnasta.',
+    thHour: 'Tunti', thSpot: 'Spot (raaka) snt/kWh', thEnergy: 'Energiahinta snt/kWh',
+    thTransfer: 'Siirtohinta snt/kWh', thCost: 'Kokonaishinta \u20ac',
     latestReading: 'Uusin mittaus:',
     noDataYet: 'Ei vielä dataa. Yhteenveto ilmestyy ensimmäisen onnistuneen ajon jälkeen.',
     loadFailed: msg => `Datan lataus epäonnistui (${msg}). Tarkista että repo on julkinen ja kustannukset.csv on olemassa.`,
@@ -537,13 +540,18 @@ function render(){
     const energyPrice = currentPrice(r.spot); // spot (+marginaali), ei ALV:tä viel
     const transferPrice = transferOn ? transferRate(r.hour) : 0; // siirto+vero, ei ALV:tä viel
     let energyCost = null, transferCost = null, totalCost = null;
+    let energyPriceDisplay = null, transferPriceDisplay = null;
     if (energyPrice !== null) {
       const vatMult = vatOn ? (1 + VAT_RATE) : 1;
       energyCost = r.kwh * energyPrice * vatMult / 100;
       transferCost = r.kwh * transferPrice * vatMult / 100;
       totalCost = energyCost + transferCost;
+      // Näytettävät snt/kWh-hinnat SISÄLTÄVÄT ALV:n (kun päällä), jotta ne
+      // täsmäävät Total cost -sarakkeeseen: kWh × hinta = kyseinen kustannusosuus.
+      energyPriceDisplay = energyPrice * vatMult;
+      transferPriceDisplay = transferPrice * vatMult;
     }
-    return { ...r, energyPrice, transferPrice, energyCost, transferCost, totalCost };
+    return { ...r, energyPrice, transferPrice, energyCost, transferCost, totalCost, energyPriceDisplay, transferPriceDisplay };
   });
   const matched = withPrice.filter(r => r.totalCost !== null);
 
@@ -594,8 +602,8 @@ function render(){
         <td>${r.hour.toLocaleString(t('locale'), {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
         <td>${r.kwh.toFixed(2)}</td>
         <td>${r.spot !== null ? r.spot.toFixed(2) : '–'}</td>
-        <td>${r.energyPrice !== null ? r.energyPrice.toFixed(2) : '–'}</td>
-        <td>${transferOn ? r.transferPrice.toFixed(2) : '–'}</td>
+        <td>${r.energyPriceDisplay !== null ? r.energyPriceDisplay.toFixed(2) : '–'}</td>
+        <td>${transferOn ? r.transferPriceDisplay.toFixed(2) : '–'}</td>
         <td>${r.totalCost !== null ? r.totalCost.toFixed(3) : '–'}</td>
       </tr>`).join('');
   } else {

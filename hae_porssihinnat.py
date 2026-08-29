@@ -36,15 +36,24 @@ from datetime import datetime, timezone
 API_BASE = "https://sahkotin.fi/prices"
 
 
-def fetch_prices(start_iso: str, end_iso: str) -> dict:
-    """Hakee tuntihinnat (snt/kWh, ALV mukana) väliltä [start_iso, end_iso).
-    Palauttaa dictin {utc_datetime: hinta_snt_kwh}."""
+def fetch_prices(start_iso: str, end_iso: str, quarter: bool = False) -> dict:
+    """Hakee hinnat (snt/kWh, ILMAN ALV:tä) väliltä [start_iso, end_iso).
+    quarter=True hakee varttihinnat (15 min), quarter=False tuntihinnat (60 min,
+    palvelimen laskema tasapainoinen keskiarvo neljästä vartista).
+
+    Palauttaa dictin {utc_datetime: hinta_snt_kwh}.
+
+    HUOM: haetaan tarkoituksella ilman ALV:tä (ei &vat-parametria), koska
+    sähkösopimuksen marginaali lisätään aina ennen ALV:n laskentaa - ALV
+    lasketaan vasta (spot-hinta + marginaali) -summalle. Marginaalin ja
+    ALV:n lisääminen tehdään update_summary.py:ssä (compute_costs)."""
     params = {
         "fix": "",   # €/MWh -> snt/kWh
-        "vat": "",   # sisällytä ALV
         "start": start_iso,
         "end": end_iso,
     }
+    if quarter:
+        params["quarter"] = ""
     query = urllib.parse.urlencode(params)
     url = f"{API_BASE}?{query}"
 

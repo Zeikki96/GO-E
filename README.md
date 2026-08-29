@@ -6,7 +6,7 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Päivitetty automaattisesti: 29.08.2026 klo 07:15 (UTC)_
+_Päivitetty automaattisesti: 29.08.2026 klo 07:30 (UTC)_
 
 _Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._
 
@@ -15,9 +15,11 @@ _Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten 
 - **Viimeiset 7 vrk:** 46.12 kWh
 - **Keskiarvo / vrk:** _lasketaan kun dataa on kertynyt vähintään vuorokausi (nyt 6.0 h)_
 
+- **Pörssisähkön kustannus (spot):** 0.12 € (0.25 snt/kWh, kulutuspainotettu keskihinta)
+
 ![Latausdata](summary_chart.png)
 
-_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv). Raakadata: [`goe_log.csv`](./goe_log.csv)._
+_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv). Kustannukset: [`kustannukset.csv`](./kustannukset.csv). Raakadata: [`goe_log.csv`](./goe_log.csv)._
 <!-- SUMMARY_END -->
 
 ## 1. Hae API-tunnukset

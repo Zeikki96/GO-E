@@ -165,10 +165,41 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2>Sähkönsiirto <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">(oma verkkoyhtiön sopimus)</span></h2>
+    <div class="controls">
+      <label class="toggle">
+        <input type="checkbox" id="transferToggle" checked>
+        <span class="switch"></span>
+        Sisällytä siirto + vero
+      </label>
+    </div>
+    <div class="controls" id="transferInputWrap" style="margin-top:16px;">
+      <div class="margin-input">
+        <span style="color:var(--text-dim)">Talviarkipäivä (11-3, ma-pe, 07-22) snt/kWh:</span>
+        <input type="number" id="winterRateValue" value="5.67" step="0.01" min="0">
+      </div>
+      <div class="margin-input">
+        <span style="color:var(--text-dim)">Muu aika snt/kWh:</span>
+        <input type="number" id="otherRateValue" value="3.24" step="0.01" min="0">
+      </div>
+      <div class="margin-input">
+        <span style="color:var(--text-dim)">Sähkövero (luokka I) snt/kWh:</span>
+        <input type="number" id="taxRateValue" value="2.92" step="0.01" min="0">
+      </div>
+    </div>
+    <p style="color:var(--text-dim); font-size:12px; margin: 14px 0 0;">
+      Siirto ja sähkövero ovat oma, energiahinnasta erillinen kustannus - marginaali ei
+      vaikuta niihin. ALV lasketaan koko summalle (energia + siirto + vero) yhdessä,
+      samaan tapaan kuin sähkölaskulla.
+    </p>
+  </div>
+
   <div class="stat-row" id="statRow">
     <div class="stat"><div class="label">Ladattu yhteensä</div><div class="value skeleton">–</div></div>
-    <div class="stat amber"><div class="label">Kokonaiskustannus</div><div class="value skeleton">–</div></div>
-    <div class="stat cyan"><div class="label">Keskihinta (painotettu)</div><div class="value skeleton">–</div></div>
+    <div class="stat amber"><div class="label">Energiakustannus</div><div class="value skeleton">–</div></div>
+    <div class="stat" style="color:var(--text)"><div class="label">Siirto + vero</div><div class="value skeleton">–</div></div>
+    <div class="stat cyan"><div class="label">Yhteensä</div><div class="value skeleton">–</div></div>
     <div class="stat"><div class="label">Ajanjakso</div><div class="value skeleton" style="font-size:16px">–</div></div>
   </div>
 
@@ -187,7 +218,7 @@
     <div style="max-height:320px; overflow:auto;">
       <table>
         <thead>
-          <tr><th>Tunti</th><th>kWh</th><th>Spot snt/kWh</th><th>Hinta snt/kWh</th><th>Kustannus €</th></tr>
+          <tr><th>Tunti</th><th>kWh</th><th>Spot snt/kWh</th><th>Energia snt/kWh</th><th>Siirto snt/kWh</th><th>Kustannus €</th></tr>
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
@@ -213,6 +244,41 @@ const CSV_URL = `./kustannukset.csv?t=${Date.now()}`;
 
 const VAT_RATE = 0.255;
 
+// Poimii kellonaikakomponentit AINA Suomen paikallisajassa riippumatta
+// katsojan omasta selaimen aikavyöhykkeestä - kriittistä oikealle
+// talviarkipäivä/muu aika -luokittelulle.
+const HELSINKI_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Helsinki',
+  month: 'numeric',
+  weekday: 'short',
+  hour: 'numeric',
+  hourCycle: 'h23',
+});
+function helsinkiParts(date) {
+  const parts = HELSINKI_FMT.formatToParts(date);
+  const map = {};
+  parts.forEach(p => { map[p.type] = p.value; });
+  return { month: parseInt(map.month, 10), weekday: map.weekday, hour: parseInt(map.hour, 10) };
+}
+
+// Talviarkipäivä: marras-maaliskuu (11,12,1,2,3), ma-pe, klo 07-22.
+// Kaikki muu (talven yöt/viikonloput, koko kesä 24h) = "muu aika".
+function isWinterWeekday(date) {
+  const { month, weekday, hour } = helsinkiParts(date);
+  const isWinterMonth = month === 11 || month === 12 || month <= 3;
+  const isWeekday = weekday !== 'Sat' && weekday !== 'Sun';
+  const isDayHour = hour >= 7 && hour < 22;
+  return isWinterMonth && isWeekday && isDayHour;
+}
+
+function transferRate(date) {
+  const winterRate = parseFloat(document.getElementById('winterRateValue').value) || 0;
+  const otherRate = parseFloat(document.getElementById('otherRateValue').value) || 0;
+  const taxRate = parseFloat(document.getElementById('taxRateValue').value) || 0;
+  const base = isWinterWeekday(date) ? winterRate : otherRate;
+  return base + taxRate;
+}
+
 let rows = []; // {hour: Date, kwh, spot} - spot ilman ALV/marginaalia
 
 function parseCSV(text){
@@ -233,12 +299,10 @@ function parseCSV(text){
 function currentPrice(spot){
   if (spot === null) return null;
   const marginOn = document.getElementById('marginToggle').checked;
-  const vatOn = document.getElementById('vatToggle').checked;
   const marginVal = parseFloat(document.getElementById('marginValue').value) || 0;
   let price = spot;
   if (marginOn) price += marginVal;
-  if (vatOn) price *= (1 + VAT_RATE);
-  return price;
+  return price; // ALV lisätään myöhemmin koko summalle (energia+siirto)
 }
 
 function fmtEur(n){ return n.toLocaleString('fi-FI', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
@@ -246,27 +310,43 @@ function fmtSnt(n){ return n.toLocaleString('fi-FI', {minimumFractionDigits:2, m
 function fmtKwh(n){ return n.toLocaleString('fi-FI', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' kWh'; }
 
 function render(){
-  const withPrice = rows.map(r => ({...r, price: currentPrice(r.spot)}));
-  const matched = withPrice.filter(r => r.price !== null);
+  const vatOn = document.getElementById('vatToggle').checked;
+  const transferOn = document.getElementById('transferToggle').checked;
+
+  const withPrice = rows.map(r => {
+    const energyPrice = currentPrice(r.spot); // spot (+marginaali), ei ALV:tä viel
+    const transferPrice = transferOn ? transferRate(r.hour) : 0; // siirto+vero, ei ALV:tä viel
+    let energyCost = null, transferCost = null, totalCost = null;
+    if (energyPrice !== null) {
+      const vatMult = vatOn ? (1 + VAT_RATE) : 1;
+      energyCost = r.kwh * energyPrice * vatMult / 100;
+      transferCost = r.kwh * transferPrice * vatMult / 100;
+      totalCost = energyCost + transferCost;
+    }
+    return { ...r, energyPrice, transferPrice, energyCost, transferCost, totalCost };
+  });
+  const matched = withPrice.filter(r => r.totalCost !== null);
 
   const totalKwh = rows.reduce((a,r)=>a+r.kwh, 0);
-  const totalCost = matched.reduce((a,r)=>a + r.kwh * r.price / 100, 0);
-  const matchedKwh = matched.reduce((a,r)=>a+r.kwh, 0);
-  const avgPrice = matchedKwh > 0 ? totalCost*100/matchedKwh : 0;
+  const totalEnergyCost = matched.reduce((a,r)=>a + r.energyCost, 0);
+  const totalTransferCost = matched.reduce((a,r)=>a + r.transferCost, 0);
+  const totalCost = totalEnergyCost + totalTransferCost;
 
   const statRow = document.getElementById('statRow');
   const stats = statRow.querySelectorAll('.value');
   stats[0].textContent = fmtKwh(totalKwh);
   stats[0].classList.remove('skeleton');
-  stats[1].textContent = fmtEur(totalCost);
+  stats[1].textContent = fmtEur(totalEnergyCost);
   stats[1].classList.remove('skeleton');
-  stats[2].textContent = fmtSnt(avgPrice);
+  stats[2].textContent = fmtEur(totalTransferCost);
   stats[2].classList.remove('skeleton');
+  stats[3].textContent = fmtEur(totalCost);
+  stats[3].classList.remove('skeleton');
   if (rows.length){
     const first = rows[0].hour, last = rows[rows.length-1].hour;
     const fmt = d => d.toLocaleDateString('fi-FI', {day:'2-digit', month:'2-digit', year:'2-digit'});
-    stats[3].textContent = `${fmt(first)} – ${fmt(last)}`;
-    stats[3].classList.remove('skeleton');
+    stats[4].textContent = `${fmt(first)} – ${fmt(last)}`;
+    stats[4].classList.remove('skeleton');
     document.getElementById('lastUpdated').textContent =
       `Uusin mittaus: ${last.toLocaleString('fi-FI')}`;
   }
@@ -276,7 +356,7 @@ function render(){
   withPrice.forEach(r => {
     const day = r.hour.toISOString().slice(0,10);
     dailyKwh[day] = (dailyKwh[day]||0) + r.kwh;
-    if (r.price !== null) dailyCost[day] = (dailyCost[day]||0) + r.kwh*r.price/100;
+    if (r.totalCost !== null) dailyCost[day] = (dailyCost[day]||0) + r.totalCost;
   });
   drawBarChart('kwhChart', dailyKwh, getComputedStyle(document.documentElement).getPropertyValue('--amber'));
   drawBarChart('costChart', dailyCost, getComputedStyle(document.documentElement).getPropertyValue('--cyan'));
@@ -290,8 +370,9 @@ function render(){
         <td>${r.hour.toLocaleString('fi-FI', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
         <td>${r.kwh.toFixed(2)}</td>
         <td>${r.spot !== null ? r.spot.toFixed(2) : '–'}</td>
-        <td>${r.price !== null ? r.price.toFixed(2) : '–'}</td>
-        <td>${r.price !== null ? (r.kwh*r.price/100).toFixed(3) : '–'}</td>
+        <td>${r.energyPrice !== null ? r.energyPrice.toFixed(2) : '–'}</td>
+        <td>${transferOn ? r.transferPrice.toFixed(2) : '–'}</td>
+        <td>${r.totalCost !== null ? r.totalCost.toFixed(3) : '–'}</td>
       </tr>`).join('');
   }
 }
@@ -357,11 +438,17 @@ async function load(){
   }
 }
 
-['vatToggle','marginToggle','marginValue'].forEach(id => {
+[
+  'vatToggle','marginToggle','marginValue',
+  'transferToggle','winterRateValue','otherRateValue','taxRateValue',
+].forEach(id => {
   document.getElementById(id).addEventListener('input', () => { if(rows.length) render(); });
 });
 document.getElementById('marginToggle').addEventListener('change', function(){
   document.getElementById('marginInputWrap').classList.toggle('disabled', !this.checked);
+});
+document.getElementById('transferToggle').addEventListener('change', function(){
+  document.getElementById('transferInputWrap').classList.toggle('disabled', !this.checked);
 });
 
 window.addEventListener('resize', () => { if(rows.length) render(); });

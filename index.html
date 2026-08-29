@@ -213,6 +213,31 @@
     <canvas id="costChart"></canvas>
   </div>
 
+  <div class="panel">
+    <h2>Ajokustannusarvio <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">(karkea arvio - todelliset olosuhteet vaihtelevat)</span></h2>
+    <p style="color:var(--text-dim); font-size:12px; margin:0 0 16px;">
+      Perustuu ylläpuolella lasketun sähkön kokonaishintaan (energia + siirto,
+      valitsemillasi ALV/marginaali-asetuksilla) kerrottuna arvioidulla
+      kulutuksella. Tarkka ajokohtainen data (Tesla-integraatio) täydentää
+      tätä myöhemmin, kunhan yhteys saadaan auki.
+    </p>
+    <div class="controls">
+      <div class="margin-input">
+        <span style="color:var(--text-dim)">Kulutus kesällä, Wh/km:</span>
+        <input type="number" id="effSummerValue" value="160" step="1" min="1">
+      </div>
+      <div class="margin-input">
+        <span style="color:var(--text-dim)">Kulutus talvella, Wh/km:</span>
+        <input type="number" id="effWinterValue" value="220" step="1" min="1">
+      </div>
+    </div>
+    <div class="stat-row" style="margin-top:16px;">
+      <div class="stat amber"><div class="label">☀️ Kesä, €/100km</div><div class="value" id="costPer100Summer">–</div></div>
+      <div class="stat cyan"><div class="label">❄️ Talvi, €/100km</div><div class="value" id="costPer100Winter">–</div></div>
+      <div class="stat"><div class="label">Käytetty keskihinta</div><div class="value" id="avgPriceForEstimate" style="font-size:20px;">–</div></div>
+    </div>
+  </div>
+
   <div class="panel" id="tablePanel" style="display:none">
     <h2>Viimeisimmät tunnit</h2>
     <div style="max-height:320px; overflow:auto;">
@@ -387,6 +412,22 @@ function render(){
         <td>${r.totalCost !== null ? r.totalCost.toFixed(3) : '–'}</td>
       </tr>`).join('');
   }
+
+  // Ajokustannusarvio: käytetään koko ajanjakson kulutuspainotettua
+  // keskihintaa (€/kWh) kerrottuna arvioidulla Wh/km-kulutuksella.
+  if (matched.length) {
+    const avgPricePerKwhEur = totalCost / totalKwh; // € per kWh (kulutuspainotettu koko datalla)
+    const effSummer = parseFloat(document.getElementById('effSummerValue').value) || 0;
+    const effWinter = parseFloat(document.getElementById('effWinterValue').value) || 0;
+
+    const costPer100Summer = avgPricePerKwhEur * (effSummer / 1000) * 100;
+    const costPer100Winter = avgPricePerKwhEur * (effWinter / 1000) * 100;
+
+    document.getElementById('costPer100Summer').textContent = fmtEur(costPer100Summer);
+    document.getElementById('costPer100Winter').textContent = fmtEur(costPer100Winter);
+    document.getElementById('avgPriceForEstimate').textContent =
+      (avgPricePerKwhEur * 100).toLocaleString('fi-FI', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' snt/kWh';
+  }
 }
 
 function drawBarChart(canvasId, dataObj, color){
@@ -453,6 +494,7 @@ async function load(){
 [
   'vatToggle','marginToggle','marginValue',
   'transferToggle','winterRateValue','otherRateValue','taxRateValue',
+  'effSummerValue','effWinterValue',
 ].forEach(id => {
   document.getElementById(id).addEventListener('input', () => { if(rows.length) render(); });
 });

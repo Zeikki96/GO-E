@@ -14,7 +14,7 @@ Käyttö:
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 import matplotlib
@@ -22,14 +22,46 @@ matplotlib.use("Agg")  # ei tarvitse näyttöä (headless CI-ympäristö)
 import matplotlib.pyplot as plt
 
 from laske_tuntikohtainen import compute_hourly
+from hae_porssihinnat import fetch_prices
 
 LOG_PATH = "goe_log.csv"
 CHART_PATH = "summary_chart.png"
+COST_CSV_PATH = "kustannukset.csv"
 README_PATH = "README.md"
 MARKER_START = "<!-- SUMMARY_START -->"
 MARKER_END = "<!-- SUMMARY_END -->"
 
 DAYS_TO_SHOW = 14
+
+
+def compute_costs(hourly):
+    """Hakee pörssihinnat kulutusdatan aikaväliltä ja yhdistää ne.
+    Palauttaa listan (tunti_paikallinen, kwh, hinta_snt_kwh tai None, kustannus_eur tai None).
+    Jos hintahaku epäonnistuu kokonaan (esim. verkko-ongelma), palauttaa
+    None jokaiselle hinnalle/kustannukselle sen sijaan että kaataa koko ajon.
+    """
+    if not hourly:
+        return []
+
+    first_hour_utc = hourly[0][0].astimezone(timezone.utc)
+    last_hour_utc = hourly[-1][0].astimezone(timezone.utc) + timedelta(hours=1)
+
+    try:
+        prices = fetch_prices(
+            first_hour_utc.isoformat().replace("+00:00", "Z"),
+            last_hour_utc.isoformat().replace("+00:00", "Z"),
+        )
+    except Exception as e:
+        print(f"Hintahaku epäonnistui ({e}) - jatketaan ilman kustannuslaskentaa.")
+        prices = {}
+
+    result = []
+    for hour_local, kwh in hourly:
+        hour_utc = hour_local.astimezone(timezone.utc)
+        price = prices.get(hour_utc)
+        cost = (kwh * price / 100.0) if price is not None else None  # snt -> €
+        result.append((hour_local, kwh, price, cost))
+    return result
 
 
 def build_daily_totals(hourly):
@@ -58,7 +90,7 @@ def draw_chart(daily_totals: dict, path: str):
     return True
 
 
-def build_summary_markdown(hourly, chart_exists: bool) -> str:
+def build_summary_markdown(hourly, chart_exists: bool, costs=None) -> str:
     if not hourly:
         return (
             f"{MARKER_START}\n"
@@ -103,15 +135,37 @@ def build_summary_markdown(hourly, chart_exists: bool) -> str:
             f"(nyt {span_days*24:.1f} h)_"
         )
 
+    if costs:
+        matched = [(h, kwh, p, c) for h, kwh, p, c in costs if p is not None]
+        unmatched_count = len(costs) - len(matched)
+        if matched:
+            total_cost = sum(c for _, _, _, c in matched)
+            matched_kwh = sum(kwh for _, kwh, _, _ in matched)
+            weighted_avg_price = (total_cost * 100.0 / matched_kwh) if matched_kwh > 0 else 0
+            lines.append("")
+            lines.append(
+                f"- **Pörssisähkön kustannus (spot):** {total_cost:.2f} € "
+                f"({weighted_avg_price:.2f} snt/kWh, kulutuspainotettu keskihinta)"
+            )
+            if unmatched_count:
+                lines.append(
+                    f"  <br>_({unmatched_count} tuntia ilman hintatietoa - todennäköisesti "
+                    "liian tuoreita, hinta ei vielä julkaistu)_"
+                )
+        else:
+            lines.append("")
+            lines.append("- **Pörssisähkön kustannus:** _hintadataa ei saatu haettua_")
+
     lines.append("")
 
     if chart_exists:
         lines.append(f"![Latausdata]({CHART_PATH})")
         lines.append("")
 
+    extra_link = " Kustannukset: [`kustannukset.csv`](./kustannukset.csv)." if costs else ""
     lines.append(
-        "_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv). "
-        "Raakadata: [`goe_log.csv`](./goe_log.csv)._"
+        "_Tarkka tuntikohtainen data: [`tuntikohtainen.csv`](./tuntikohtainen.csv)."
+        f"{extra_link} Raakadata: [`goe_log.csv`](./goe_log.csv)._"
     )
     lines.append(MARKER_END)
 
@@ -146,7 +200,9 @@ def main():
     daily_totals = build_daily_totals(hourly)
     chart_exists = draw_chart(daily_totals, CHART_PATH)
 
-    summary_md = build_summary_markdown(hourly, chart_exists)
+    costs = compute_costs(hourly)
+
+    summary_md = build_summary_markdown(hourly, chart_exists, costs)
     update_readme(summary_md)
 
     # Kirjoitetaan myös tuntikohtainen.csv talteen (helppo ladata/analysoida erikseen)
@@ -155,7 +211,19 @@ def main():
         for hour, kwh in hourly:
             f.write(f"{hour.isoformat()},{kwh:.4f}\n")
 
-    print(f"Päivitetty: {README_PATH}, {CHART_PATH if chart_exists else '(ei kaaviota)'}, tuntikohtainen.csv")
+    # Kustannukset omaan tiedostoonsa (tunti, kwh, hinta snt/kWh, kustannus €)
+    if costs:
+        with open(COST_CSV_PATH, "w", encoding="utf-8") as f:
+            f.write("tunti,kwh,hinta_snt_kwh,kustannus_eur\n")
+            for hour, kwh, price, cost in costs:
+                price_str = f"{price:.4f}" if price is not None else ""
+                cost_str = f"{cost:.4f}" if cost is not None else ""
+                f.write(f"{hour.isoformat()},{kwh:.4f},{price_str},{cost_str}\n")
+
+    print(
+        f"Päivitetty: {README_PATH}, {CHART_PATH if chart_exists else '(ei kaaviota)'}, "
+        f"tuntikohtainen.csv, {COST_CSV_PATH if costs else '(ei kustannuksia)'}"
+    )
 
 
 if __name__ == "__main__":

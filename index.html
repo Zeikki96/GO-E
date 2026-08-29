@@ -85,6 +85,28 @@
     gap:1px; background: var(--line); border:1px solid var(--line);
     border-radius:10px; overflow:hidden; margin: 32px 0;
   }
+  .stat-group-wrap{ margin: 32px 0; }
+  .stat-group-wrap .stat-row{ margin: 0 0 2px; }
+  .stat-group-wrap .stat-row:last-child{ margin-bottom: 0; }
+  .stat-row-4{ grid-template-columns: repeat(4, 1fr); }
+  .stat-row-3{ grid-template-columns: repeat(3, 1fr); }
+  .stat-row-2{ grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 700px){
+    .stat-row-4{ grid-template-columns: repeat(2, 1fr); }
+    .stat-row-3{ grid-template-columns: repeat(2, 1fr); }
+    .stat-row-2{ grid-template-columns: repeat(1, 1fr); }
+  }
+
+  .period-heading{
+    font-family: var(--mono); font-size: 12px; letter-spacing:.1em;
+    text-transform: uppercase; color: var(--text-dim);
+    margin: 32px 0 8px; display:flex; align-items:center; gap:8px;
+  }
+  .period-heading b{
+    color: var(--cyan); font-weight:600; letter-spacing:0; text-transform:none;
+    font-size: 13px;
+  }
+  .period-heading + .stat-group-wrap{ margin-top: 0; }
   .stat{
     background: var(--bg-panel); padding: 22px 20px;
   }
@@ -195,7 +217,7 @@
 
   <div class="top-grid">
     <div class="col-left">
-      <details class="panel" open>
+      <details class="panel">
         <summary data-i18n="pricingHeading"></summary>
         <div class="controls">
           <label class="toggle">
@@ -216,7 +238,7 @@
         <p class="field-note" data-i18n="marginNote"></p>
       </details>
 
-      <details class="panel" open>
+      <details class="panel">
         <summary><span data-i18n="transferHeading"></span> <span style="font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;" data-i18n="transferHeadingSub"></span></summary>
         <div class="controls">
           <label class="toggle">
@@ -244,7 +266,7 @@
     </div>
 
     <div class="col-right">
-      <details class="panel" open>
+      <details class="panel">
         <summary data-i18n="periodHeading"></summary>
         <div class="controls" id="periodFilter">
           <button class="period-btn active" data-period="all" data-i18n="periodAll"></button>
@@ -267,14 +289,20 @@
     </div>
   </div>
 
-  <div class="stat-row" id="statRow">
-    <div class="stat"><div class="label" data-i18n="statTotalCharged"></div><div class="value skeleton">–</div></div>
-    <div class="stat amber"><div class="label" data-i18n="statEnergyCost"></div><div class="value skeleton">–</div></div>
-    <div class="stat" style="color:var(--text)"><div class="label" data-i18n="statTransferTax"></div><div class="value skeleton">–</div></div>
-    <div class="stat cyan"><div class="label" data-i18n="statTotal"></div><div class="value skeleton">–</div></div>
-    <div class="stat amber"><div class="label" data-i18n="statAvgEnergyPrice"></div><div class="value skeleton">–</div></div>
-    <div class="stat"><div class="label" data-i18n="statAvgTotalPrice"></div><div class="value skeleton">–</div></div>
-    <div class="stat"><div class="label" data-i18n="statPeriod"></div><div class="value skeleton" style="font-size:16px">–</div></div>
+  <div class="period-heading">
+    <span data-i18n="periodHeadingPrefix"></span> <b id="periodHeadingValue">–</b>
+  </div>
+  <div class="stat-group-wrap" id="statRow">
+    <div class="stat-row stat-row-4">
+      <div class="stat"><div class="label" data-i18n="statTotalCharged"></div><div class="value skeleton">–</div></div>
+      <div class="stat amber"><div class="label" data-i18n="statEnergyCost"></div><div class="value skeleton">–</div></div>
+      <div class="stat" style="color:var(--text)"><div class="label" data-i18n="statTransferTax"></div><div class="value skeleton">–</div></div>
+      <div class="stat cyan"><div class="label" data-i18n="statTotal"></div><div class="value skeleton">–</div></div>
+    </div>
+    <div class="stat-row stat-row-2">
+      <div class="stat amber"><div class="label" data-i18n="statAvgEnergyPrice"></div><div class="value skeleton">–</div></div>
+      <div class="stat"><div class="label" data-i18n="statAvgTotalPrice"></div><div class="value skeleton">–</div></div>
+    </div>
   </div>
 
   <details class="panel" id="kwhChartPanel">
@@ -347,7 +375,8 @@ const TRANSLATIONS = {
     offPeakLabel: 'Other times c/kWh:', taxLabel: 'Electricity tax (Class I) c/kWh:',
     transferNote: 'Grid transfer and electricity tax are a separate cost from energy - the margin does not apply to them. VAT is calculated on the full total (energy + transfer + tax) together, the same way it appears on your electricity bill.',
     statTotalCharged: 'Total charged', statEnergyCost: 'Energy cost', statTransferTax: 'Transfer + tax',
-    statTotal: 'Total', statAvgEnergyPrice: 'Avg. energy price', statAvgTotalPrice: 'Avg. total price (incl. transfer)', statPeriod: 'Period',
+    statTotal: 'Total', statAvgEnergyPrice: 'Avg. energy price', statAvgTotalPrice: 'Avg. total price',
+    periodHeadingPrefix: 'Showing data for:',
     kwhChartHeading: 'Energy charged / day', costChartHeading: 'Cost / day',
     drivingHeading: 'Driving cost estimate', drivingHeadingSub: '(rough estimate - actual conditions vary)',
     drivingNote: 'Based on the total electricity price calculated above (energy + transfer, with your chosen VAT/margin settings) multiplied by an estimated consumption. Accurate per-trip data (Tesla integration) will complement this later, once the connection is working.',
@@ -377,7 +406,8 @@ const TRANSLATIONS = {
     offPeakLabel: 'Muu aika snt/kWh:', taxLabel: 'Sähkövero (luokka I) snt/kWh:',
     transferNote: 'Siirto ja sähkövero ovat oma, energiahinnasta erillinen kustannus - marginaali ei vaikuta niihin. ALV lasketaan koko summalle (energia + siirto + vero) yhdessä, samaan tapaan kuin sähkölaskulla.',
     statTotalCharged: 'Ladattu yhteensä', statEnergyCost: 'Energiakustannus', statTransferTax: 'Siirto + vero',
-    statTotal: 'Yhteensä', statAvgEnergyPrice: 'Keskihinta (energia)', statAvgTotalPrice: 'Keskihinta (energia+siirto)', statPeriod: 'Ajanjakso',
+    statTotal: 'Yhteensä', statAvgEnergyPrice: 'Keskihinta (energia)', statAvgTotalPrice: 'Keskihinta (energia+siirto)',
+    periodHeadingPrefix: 'Näytetään data ajalta:',
     kwhChartHeading: 'Ladattu energia / vrk', costChartHeading: 'Kustannus / vrk',
     drivingHeading: 'Ajokustannusarvio', drivingHeadingSub: '(karkea arvio - todelliset olosuhteet vaihtelevat)',
     drivingNote: 'Perustuu ylläpuolella lasketun sähkön kokonaishintaan (energia + siirto, valitsemillasi ALV/marginaali-asetuksilla) kerrottuna arvioidulla kulutuksella. Tarkka ajokohtainen data (Tesla-integraatio) täydentää tätä myöhemmin, kunhan yhteys saadaan auki.',
@@ -546,6 +576,7 @@ function render(){
 
   if (!activeRows.length) {
     stats.forEach(s => { s.textContent = '–'; });
+    document.getElementById('periodHeadingValue').textContent = '–';
     document.getElementById('kwhChart').getContext('2d').clearRect(0,0,9999,9999);
     document.getElementById('costChart').getContext('2d').clearRect(0,0,9999,9999);
     document.getElementById('tablePanel').style.display = 'none';
@@ -596,8 +627,7 @@ function render(){
   if (activeRows.length){
     const first = activeRows[0].hour, last = activeRows[activeRows.length-1].hour;
     const fmt = d => d.toLocaleDateString(t('locale'), {day:'2-digit', month:'2-digit', year:'2-digit'});
-    stats[6].textContent = `${fmt(first)} – ${fmt(last)}`;
-    stats[6].classList.remove('skeleton');
+    document.getElementById('periodHeadingValue').textContent = `${fmt(first)} – ${fmt(last)}`;
     document.getElementById('lastUpdated').textContent =
       `${t('latestReading')} ${rows[rows.length-1].hour.toLocaleString(t('locale'))}`;
   }

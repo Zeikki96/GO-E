@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Asenna riippuvuudet (yhteenvetokaaviota varten)
-        run: pip install matplotlib
+      - name: Asenna riippuvuudet (yhteenvetokaaviota ja aikavyöhykettä varten)
+        run: pip install matplotlib tzdata
 
       - name: Kysy go-e:n tila ja lisää lokiin
         env:

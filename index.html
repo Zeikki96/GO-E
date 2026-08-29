@@ -255,6 +255,7 @@
     <div class="stat amber"><div class="label" data-i18n="statEnergyCost"></div><div class="value skeleton">–</div></div>
     <div class="stat" style="color:var(--text)"><div class="label" data-i18n="statTransferTax"></div><div class="value skeleton">–</div></div>
     <div class="stat cyan"><div class="label" data-i18n="statTotal"></div><div class="value skeleton">–</div></div>
+    <div class="stat"><div class="label" data-i18n="statAvgPrice"></div><div class="value skeleton">–</div></div>
     <div class="stat"><div class="label" data-i18n="statPeriod"></div><div class="value skeleton" style="font-size:16px">–</div></div>
   </div>
 
@@ -328,7 +329,7 @@ const TRANSLATIONS = {
     offPeakLabel: 'Other times c/kWh:', taxLabel: 'Electricity tax (Class I) c/kWh:',
     transferNote: 'Grid transfer and electricity tax are a separate cost from energy - the margin does not apply to them. VAT is calculated on the full total (energy + transfer + tax) together, the same way it appears on your electricity bill.',
     statTotalCharged: 'Total charged', statEnergyCost: 'Energy cost', statTransferTax: 'Transfer + tax',
-    statTotal: 'Total', statPeriod: 'Period',
+    statTotal: 'Total', statAvgPrice: 'Avg. price', statPeriod: 'Period',
     kwhChartHeading: 'Energy charged / day', costChartHeading: 'Cost / day',
     drivingHeading: 'Driving cost estimate', drivingHeadingSub: '(rough estimate - actual conditions vary)',
     drivingNote: 'Based on the total electricity price calculated above (energy + transfer, with your chosen VAT/margin settings) multiplied by an estimated consumption. Accurate per-trip data (Tesla integration) will complement this later, once the connection is working.',
@@ -358,7 +359,7 @@ const TRANSLATIONS = {
     offPeakLabel: 'Muu aika snt/kWh:', taxLabel: 'Sähkövero (luokka I) snt/kWh:',
     transferNote: 'Siirto ja sähkövero ovat oma, energiahinnasta erillinen kustannus - marginaali ei vaikuta niihin. ALV lasketaan koko summalle (energia + siirto + vero) yhdessä, samaan tapaan kuin sähkölaskulla.',
     statTotalCharged: 'Ladattu yhteensä', statEnergyCost: 'Energiakustannus', statTransferTax: 'Siirto + vero',
-    statTotal: 'Yhteensä', statPeriod: 'Ajanjakso',
+    statTotal: 'Yhteensä', statAvgPrice: 'Keskihinta', statPeriod: 'Ajanjakso',
     kwhChartHeading: 'Ladattu energia / vrk', costChartHeading: 'Kustannus / vrk',
     drivingHeading: 'Ajokustannusarvio', drivingHeadingSub: '(karkea arvio - todelliset olosuhteet vaihtelevat)',
     drivingNote: 'Perustuu ylläpuolella lasketun sähkön kokonaishintaan (energia + siirto, valitsemillasi ALV/marginaali-asetuksilla) kerrottuna arvioidulla kulutuksella. Tarkka ajokohtainen data (Tesla-integraatio) täydentää tätä myöhemmin, kunhan yhteys saadaan auki.',
@@ -568,11 +569,14 @@ function render(){
   stats[2].classList.remove('skeleton');
   stats[3].textContent = fmtEur(totalCost);
   stats[3].classList.remove('skeleton');
+  const avgPricePerKwh = totalKwh > 0 ? (totalCost / totalKwh) * 100 : 0;
+  stats[4].textContent = fmtSnt(avgPricePerKwh);
+  stats[4].classList.remove('skeleton');
   if (activeRows.length){
     const first = activeRows[0].hour, last = activeRows[activeRows.length-1].hour;
     const fmt = d => d.toLocaleDateString(t('locale'), {day:'2-digit', month:'2-digit', year:'2-digit'});
-    stats[4].textContent = `${fmt(first)} – ${fmt(last)}`;
-    stats[4].classList.remove('skeleton');
+    stats[5].textContent = `${fmt(first)} – ${fmt(last)}`;
+    stats[5].classList.remove('skeleton');
     document.getElementById('lastUpdated').textContent =
       `${t('latestReading')} ${rows[rows.length-1].hour.toLocaleString(t('locale'))}`;
   }

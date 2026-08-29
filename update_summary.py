@@ -33,13 +33,22 @@ MARKER_END = "<!-- SUMMARY_END -->"
 
 DAYS_TO_SHOW = 14
 
+# Sähkösopimuksen hinnoitteluparametrit. Marginaali lisätään AINA ennen
+# ALV:n laskentaa: kokonaishinta = (spot + marginaali) * (1 + ALV).
+MARGIN_SNT_KWH = 0.39  # sähkösopimuksen marginaali, snt/kWh, ILMAN ALV:tä
+VAT_RATE = 0.255  # Suomen yleinen ALV 25,5 % (voimassa 1.9.2024 alkaen)
+
 
 def compute_costs(hourly):
-    """Hakee pörssihinnat kulutusdatan aikaväliltä ja yhdistää ne.
-    Palauttaa listan (tunti_paikallinen, kwh, hinta_snt_kwh tai None, kustannus_eur tai None).
-    Jos hintahaku epäonnistuu kokonaan (esim. verkko-ongelma), palauttaa
-    None jokaiselle hinnalle/kustannukselle sen sijaan että kaataa koko ajon.
-    """
+    """Hakee pörssihinnat (ilman ALV:tä) kulutusdatan aikaväliltä, lisää
+    sähkösopimuksen marginaalin ja ALV:n, ja yhdistää tuloksen kulutukseen.
+
+    Kokonaishinta lasketaan kaavalla: (spot + marginaali) * (1 + ALV) -
+    tämä on sama järjestys jota sähköyhtiöt käyttävät laskutuksessaan.
+
+    Palauttaa listan (tunti_paikallinen, kwh, spot_snt_kwh, kokonaishinta_snt_kwh,
+    kustannus_eur). Hinta/kustannus on None jos kyseiselle tunnille ei
+    löytynyt spot-hintaa (esim. liian tuore, ei vielä julkaistu)."""
     if not hourly:
         return []
 
@@ -47,20 +56,25 @@ def compute_costs(hourly):
     last_hour_utc = hourly[-1][0].astimezone(timezone.utc) + timedelta(hours=1)
 
     try:
-        prices = fetch_prices(
+        spot_prices = fetch_prices(
             first_hour_utc.isoformat().replace("+00:00", "Z"),
             last_hour_utc.isoformat().replace("+00:00", "Z"),
         )
     except Exception as e:
         print(f"Hintahaku epäonnistui ({e}) - jatketaan ilman kustannuslaskentaa.")
-        prices = {}
+        spot_prices = {}
 
     result = []
     for hour_local, kwh in hourly:
         hour_utc = hour_local.astimezone(timezone.utc)
-        price = prices.get(hour_utc)
-        cost = (kwh * price / 100.0) if price is not None else None  # snt -> €
-        result.append((hour_local, kwh, price, cost))
+        spot = spot_prices.get(hour_utc)
+        if spot is not None:
+            total_price = (spot + MARGIN_SNT_KWH) * (1 + VAT_RATE)
+            cost = kwh * total_price / 100.0  # snt -> €
+        else:
+            total_price = None
+            cost = None
+        result.append((hour_local, kwh, spot, total_price, cost))
     return result
 
 
@@ -136,16 +150,24 @@ def build_summary_markdown(hourly, chart_exists: bool, costs=None) -> str:
         )
 
     if costs:
-        matched = [(h, kwh, p, c) for h, kwh, p, c in costs if p is not None]
+        matched = [(h, kwh, s, t, c) for h, kwh, s, t, c in costs if t is not None]
         unmatched_count = len(costs) - len(matched)
         if matched:
-            total_cost = sum(c for _, _, _, c in matched)
-            matched_kwh = sum(kwh for _, kwh, _, _ in matched)
-            weighted_avg_price = (total_cost * 100.0 / matched_kwh) if matched_kwh > 0 else 0
+            total_cost = sum(c for _, _, _, _, c in matched)
+            matched_kwh = sum(kwh for _, kwh, _, _, _ in matched)
+            weighted_avg_total = (total_cost * 100.0 / matched_kwh) if matched_kwh > 0 else 0
+            weighted_avg_spot = (
+                sum(s * kwh for _, kwh, s, _, _ in matched) / matched_kwh
+                if matched_kwh > 0 else 0
+            )
             lines.append("")
             lines.append(
-                f"- **Pörssisähkön kustannus (spot):** {total_cost:.2f} € "
-                f"({weighted_avg_price:.2f} snt/kWh, kulutuspainotettu keskihinta)"
+                f"- **Pörssisähkön kustannus (spot + marginaali {MARGIN_SNT_KWH:.2f} snt/kWh + ALV {VAT_RATE*100:.1f}%):** "
+                f"{total_cost:.2f} € ({weighted_avg_total:.2f} snt/kWh, kulutuspainotettu keskihinta)"
+            )
+            lines.append(
+                f"  <br>_josta pelkkä spot-hinta (ilman marginaalia/ALV:tä): "
+                f"{weighted_avg_spot:.2f} snt/kWh_"
             )
             if unmatched_count:
                 lines.append(
@@ -211,18 +233,21 @@ def main():
         for hour, kwh in hourly:
             f.write(f"{hour.isoformat()},{kwh:.4f}\n")
 
-    # Kustannukset omaan tiedostoonsa (tunti, kwh, hinta snt/kWh, kustannus €)
-    if costs:
-        with open(COST_CSV_PATH, "w", encoding="utf-8") as f:
-            f.write("tunti,kwh,hinta_snt_kwh,kustannus_eur\n")
-            for hour, kwh, price, cost in costs:
-                price_str = f"{price:.4f}" if price is not None else ""
-                cost_str = f"{cost:.4f}" if cost is not None else ""
-                f.write(f"{hour.isoformat()},{kwh:.4f},{price_str},{cost_str}\n")
+    # Kustannukset omaan tiedostoonsa (tunti, kwh, spot-hinta, kokonaishinta marg+ALV, kustannus €)
+    # HUOM: kirjoitetaan AINA, vaikka costs olisi tyhjä (esim. ei ladattu
+    # viime aikoina) - näin index.html:n CSV-haku saa aina 200 OK:n eikä
+    # 404:ää, koska tiedosto on olemassa vaikka rivejä ei olisi.
+    with open(COST_CSV_PATH, "w", encoding="utf-8") as f:
+        f.write("tunti,kwh,spot_snt_kwh,kokonaishinta_snt_kwh,kustannus_eur\n")
+        for hour, kwh, spot, total_price, cost in costs:
+            spot_str = f"{spot:.4f}" if spot is not None else ""
+            total_str = f"{total_price:.4f}" if total_price is not None else ""
+            cost_str = f"{cost:.4f}" if cost is not None else ""
+            f.write(f"{hour.isoformat()},{kwh:.4f},{spot_str},{total_str},{cost_str}\n")
 
     print(
         f"Päivitetty: {README_PATH}, {CHART_PATH if chart_exists else '(ei kaaviota)'}, "
-        f"tuntikohtainen.csv, {COST_CSV_PATH if costs else '(ei kustannuksia)'}"
+        f"tuntikohtainen.csv, {COST_CSV_PATH}"
     )
 
 

@@ -6,7 +6,7 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Päivitetty automaattisesti: 29.08.2026 klo 04:30 (UTC)_
+_Päivitetty automaattisesti: 29.08.2026 klo 04:45 (UTC)_
 
 _Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._
 

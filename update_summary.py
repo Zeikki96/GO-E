@@ -21,7 +21,7 @@ import matplotlib
 matplotlib.use("Agg")  # ei tarvitse näyttöä (headless CI-ympäristö)
 import matplotlib.pyplot as plt
 
-from laske_tuntikohtainen import compute_hourly
+from laske_tuntikohtainen import compute_hourly, compute_quarterly
 from hae_porssihinnat import fetch_prices
 
 LOG_PATH = "goe_log.csv"
@@ -39,42 +39,69 @@ MARGIN_SNT_KWH = 0.39  # sähkösopimuksen marginaali, snt/kWh, ILMAN ALV:tä
 VAT_RATE = 0.255  # Suomen yleinen ALV 25,5 % (voimassa 1.9.2024 alkaen)
 
 
-def compute_costs(hourly):
-    """Hakee pörssihinnat (ilman ALV:tä) kulutusdatan aikaväliltä, lisää
-    sähkösopimuksen marginaalin ja ALV:n, ja yhdistää tuloksen kulutukseen.
+def compute_costs(log_path: str):
+    """Laskee kustannukset VARTTITARKKUUDELLA (todellinen kulutus per 15 min
+    yhdistettynä saman vartin spot-hintaan) ja aggregoi tuloksen takaisin
+    tunneiksi näyttöä varten. Tämä vastaa sitä miten sähköyhtiö laskuttaa
+    1.10.2025 alkaen (kulutuspainotettu varttihinta), toisin kuin tunnin
+    sisäisten varttien tasapainoinen keskiarvo.
 
-    Kokonaishinta lasketaan kaavalla: (spot + marginaali) * (1 + ALV) -
-    tämä on sama järjestys jota sähköyhtiöt käyttävät laskutuksessaan.
+    Palauttaa listan (tunti_paikallinen, kwh, spot_snt_kwh_kulutuspainotettu,
+    kokonaishinta_snt_kwh_kulutuspainotettu, kustannus_eur). spot on tunnin
+    sisäisten varttien KULUTUSPAINOTETTU keskiarvo (ei tasapainoinen), joten
+    se voi poiketa siitä mitä esim. sahkotin.fi:n tuntiendpoint antaisi
+    suoraan - se on tarkoituksellista ja tarkempaa."""
+    try:
+        quarterly = compute_quarterly(log_path)
+    except FileNotFoundError:
+        quarterly = []
 
-    Palauttaa listan (tunti_paikallinen, kwh, spot_snt_kwh, kokonaishinta_snt_kwh,
-    kustannus_eur). Hinta/kustannus on None jos kyseiselle tunnille ei
-    löytynyt spot-hintaa (esim. liian tuore, ei vielä julkaistu)."""
-    if not hourly:
+    if not quarterly:
         return []
 
-    first_hour_utc = hourly[0][0].astimezone(timezone.utc)
-    last_hour_utc = hourly[-1][0].astimezone(timezone.utc) + timedelta(hours=1)
+    first_q_utc = quarterly[0][0].astimezone(timezone.utc)
+    last_q_utc = quarterly[-1][0].astimezone(timezone.utc) + timedelta(minutes=15)
 
     try:
         spot_prices = fetch_prices(
-            first_hour_utc.isoformat().replace("+00:00", "Z"),
-            last_hour_utc.isoformat().replace("+00:00", "Z"),
+            first_q_utc.isoformat().replace("+00:00", "Z"),
+            last_q_utc.isoformat().replace("+00:00", "Z"),
+            quarter=True,
         )
     except Exception as e:
-        print(f"Hintahaku epäonnistui ({e}) - jatketaan ilman kustannuslaskentaa.")
+        print(f"Varttihintahaku epäonnistui ({e}) - jatketaan ilman kustannuslaskentaa.")
         spot_prices = {}
 
+    # Ryhmitellään vartit tunneiksi, lasketaan jokaiselle tunnille
+    # kulutuspainotettu spot-hinta: sum(kwh_i * hinta_i) / sum(kwh_i)
+    hourly_groups = defaultdict(list)  # tunti -> [(kwh, spot_tai_None), ...]
+    for q_hour, kwh in quarterly:
+        q_utc = q_hour.astimezone(timezone.utc)
+        spot = spot_prices.get(q_utc)
+        hour_key = q_hour.replace(minute=0, second=0, microsecond=0)
+        hourly_groups[hour_key].append((kwh, spot))
+
     result = []
-    for hour_local, kwh in hourly:
-        hour_utc = hour_local.astimezone(timezone.utc)
-        spot = spot_prices.get(hour_utc)
-        if spot is not None:
-            total_price = (spot + MARGIN_SNT_KWH) * (1 + VAT_RATE)
-            cost = kwh * total_price / 100.0  # snt -> €
+    for hour_local in sorted(hourly_groups, key=lambda h: h.astimezone(timezone.utc)):
+        parts = hourly_groups[hour_local]
+        total_kwh = sum(kwh for kwh, _ in parts)
+        priced = [(kwh, s) for kwh, s in parts if s is not None]
+        priced_kwh = sum(kwh for kwh, _ in priced)
+
+        if priced_kwh > 0:
+            weighted_spot = sum(kwh * s for kwh, s in priced) / priced_kwh
+            total_price = (weighted_spot + MARGIN_SNT_KWH) * (1 + VAT_RATE)
+            # Kustannus lasketaan vartti vartilta (tarkin mahdollinen tapa),
+            # ei tunnin painotetulla keskihinnalla kertomalla - nämä antavat
+            # saman tuloksen matemaattisesti, mutta lasketaan suoraan varteittain
+            # selkeyden vuoksi.
+            cost = sum(kwh * ((s + MARGIN_SNT_KWH) * (1 + VAT_RATE)) / 100.0 for kwh, s in priced)
         else:
+            weighted_spot = None
             total_price = None
             cost = None
-        result.append((hour_local, kwh, spot, total_price, cost))
+
+        result.append((hour_local, total_kwh, weighted_spot, total_price, cost))
     return result
 
 
@@ -131,6 +158,10 @@ def build_summary_markdown(hourly, chart_exists: bool, costs=None) -> str:
         "### 📊 Latausdatan yhteenveto",
         "",
         f"_Päivitetty automaattisesti: {updated_at}_",
+        "",
+        "_Kustannus lasketaan varttitasolla (15 min) todellista kulutusta "
+        "vastaan, samalla tavalla kuin sähköyhtiö laskuttaa 1.10.2025 alkaen "
+        "- ei tunnin sisäisten varttien tasapainoista keskiarvoa._",
         "",
         "_Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua "
         "mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._",
@@ -222,7 +253,7 @@ def main():
     daily_totals = build_daily_totals(hourly)
     chart_exists = draw_chart(daily_totals, CHART_PATH)
 
-    costs = compute_costs(hourly)
+    costs = compute_costs(LOG_PATH)
 
     summary_md = build_summary_markdown(hourly, chart_exists, costs)
     update_readme(summary_md)

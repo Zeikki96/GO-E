@@ -6,19 +6,19 @@ voi myöhemmin verrata pörssisähkön tuntihintoihin.
 <!-- SUMMARY_START -->
 ### 📊 Latausdatan yhteenveto
 
-_Päivitetty automaattisesti: 03.09.2026 klo 02:45 (UTC)_
+_Päivitetty automaattisesti: 03.09.2026 klo 03:00 (UTC)_
 
 _Kustannus lasketaan varttitasolla (15 min) todellista kulutusta vastaan, samalla tavalla kuin sähköyhtiö laskuttaa 1.10.2025 alkaen - ei tunnin sisäisten varttien tasapainoista keskiarvoa._
 
 _Energialukujen skaalaus kalibroitiin 28.8.2026 tunnettua mittarilukemaa vasten (ks. goe_logger.py:n kommentit)._
 
-- **Yhteensä ladattu:** 85.4 kWh (28.08.2026 – 03.09.2026)
-- **Viimeiset 24 h:** 39.33 kWh
-- **Viimeiset 7 vrk:** 85.45 kWh
-- **Keskiarvo / vrk:** 16.28 kWh
+- **Yhteensä ladattu:** 87.4 kWh (28.08.2026 – 03.09.2026)
+- **Viimeiset 24 h:** 41.25 kWh
+- **Viimeiset 7 vrk:** 87.37 kWh
+- **Keskiarvo / vrk:** 16.51 kWh
 
-- **Pörssisähkön kustannus (spot + marginaali 0.39 snt/kWh + ALV 25.5%):** 1.68 € (1.97 snt/kWh, kulutuspainotettu keskihinta)
-  <br>_josta pelkkä spot-hinta (ilman marginaalia/ALV:tä): 1.18 snt/kWh_
+- **Pörssisähkön kustannus (spot + marginaali 0.39 snt/kWh + ALV 25.5%):** 1.75 € (2.00 snt/kWh, kulutuspainotettu keskihinta)
+  <br>_josta pelkkä spot-hinta (ilman marginaalia/ALV:tä): 1.21 snt/kWh_
 
 ![Latausdata](summary_chart.png)
 
